@@ -1,0 +1,10 @@
+test*
+
+__pycache__
+.vscode
+
+data
+
+*.zip
+MACAS-main
+
