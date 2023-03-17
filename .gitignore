@@ -3,7 +3,9 @@ test*
 __pycache__
 .vscode
 
-data
+data/*
+!data/ghc_test.tsv
+!data/ghc_train.tsv
 
 *.zip
 MACAS-main
