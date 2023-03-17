@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from config import *
 from corpus import deal_train_data, deal_test_data, CustomDataset
-from model.xlm_roberta import BertModel
+from model.baseline import BertModel
 
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
