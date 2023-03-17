@@ -44,8 +44,12 @@ def eval_main(model, eval_dataloader):
 
 def train_main():
     config = get_default_config()
+    config.device = 'cuda'
+    config.cuda_id = '0'
+    config.just_test = True
+    
     device = config.device
-    os.environ['CUDA_VISIBLE_DEVICES']=config.cuda_id
+    os.environ['CUDA_VISIBLE_DEVICES'] = config.cuda_id
     
     train_data = deal_train_data()
     train_data, dev_data = train_test_split(train_data, train_size=0.8, shuffle=True)
@@ -63,13 +67,15 @@ def train_main():
         for x, y in train_data:
             y = y.to(device)
             output = model(x)
-            loss = criterion(output, y)
+            loss = criterion(output.view(-1, 2), y.view(-1))
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            break
-        eval_res = eval_main(model, dev_data)
-        break   
+            if config.just_test:
+                break
+        # eval_res = eval_main(model, dev_data)
+        if config.just_test:
+            break   
 
 
 if __name__ == '__main__':

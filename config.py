@@ -6,19 +6,12 @@ class Config:
     cuda_id = '0'
     
     base = True
-    clip = False
+    just_test = False
     
     epochs = 10
-    batch_size = 1
+    batch_size = 8
     
     
 def get_default_config():
     return Config()
 
-
-def get_clip_config():
-    config = Config()
-    config.version = 'clip'
-    config.base = False
-    config.clip = True
-    return config

@@ -27,6 +27,16 @@ def read_csv(file_path):
         #     content.append(row)
     return content
 
+def deal_train_data():
+    train_data = read_csv(train_data_path)[1:]
+    train_data = [[str(p[0]), int(p[1]), int(p[2]), int(p[3])]for p in train_data]
+    return train_data
+
+def deal_test_data():
+    test_data = read_csv(test_data_path)[1:]
+    test_data = [[str(p[0]), int(p[1]), int(p[2]), int(p[3])]for p in test_data]
+    return test_data
+
 
 class CustomDataset(Dataset):
     def __init__(self, data, config) -> None:
@@ -55,8 +65,8 @@ class CustomDataset(Dataset):
 
 if __name__ == '__main__':
 
-    sample_train_data = read_csv(train_data_path)[1:]
-    sample_test_data = read_csv(test_data_path)[1:]
+    sample_train_data = deal_train_data()
+    sample_test_data = deal_test_data()
     
     # for line in sample_train_data[1:3]:
     #     print(line)

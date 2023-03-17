@@ -61,6 +61,11 @@ class BertModel(nn.Module):
         probs_list = [F.softmax(logits, dim=-1)for logits in logits_list]
         output = torch.stack(probs_list, dim=1)
         return output
+    
+    def predict(self, input):
+        output = self(input)
+        preds = torch.argmax(output, dim=-1)
+        return preds
 
 
 if __name__ == '__main__':
@@ -77,8 +82,12 @@ if __name__ == '__main__':
     sample_model.get_pretrained_encoder()
     sample_model.freeze_encoder()
     sample_model.to(SampleConfig.device)
+    sample_model.eval()
     sample_output = sample_model(sample_sentences)
     print(sample_output)
     print(sample_output.shape)
+    sample_preds = sample_model.predict(sample_sentences)
+    print(sample_preds)
+    print(sample_preds.shape)
     pass
     
