@@ -1,4 +1,4 @@
-# import os
+import os
 import logging
 import torch
 import torch.nn as nn
@@ -12,7 +12,7 @@ from transformers import (
     AutoConfig,
     XLMRobertaForSequenceClassification
 )
-
+# from config import CustomConfig
 
 class ClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
@@ -37,17 +37,24 @@ class ClassificationHead(nn.Module):
 
 
 class BertModel(nn.Module):
-    def __init__(self, config) -> None:
+    def __init__(self, 
+                 config,
+                #  config: CustomConfig,
+                 ):
         super().__init__()
         self.config = config
-        self.model_config = AutoConfig.from_pretrained(config.model_name, num_labels=2)
-        self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+        self.model_config = AutoConfig.from_pretrained(config.model_name, 
+                                                       num_labels=2, 
+                                                       cache_dir=config.pretrained_model_fold)
+        self.tokenizer = AutoTokenizer.from_pretrained(config.model_name,
+                                                       cache_dir=config.pretrained_model_fold)
         self.encoder = AutoModel.from_config(self.model_config)
         self.decoder_list = nn.ModuleList(ClassificationHead(self.model_config)for _ in range(3))
         # self.model = AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels=2)
     
-    def get_pretrained_encoder(self, cache_dir='./saved_model'):
+    def get_pretrained_encoder(self):
         # logging.getLogger("transformers").setLevel(logging.ERROR)
+        cache_dir = self.config.pretrained_model_fold
         path(cache_dir).mkdir(parents=True, exist_ok=True)
         self.encoder = self.encoder.from_pretrained(self.config.model_name, cache_dir=cache_dir)
         self.to(self.config.device)
@@ -76,6 +83,10 @@ if __name__ == '__main__':
         model_name = 'xlm-roberta-base'
         device = 'cuda'
         
+        pretrained_model_fold = './saved_model'
+    
+    os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+    
     sample_sentences = ['a sample sentence', 
                         'two sample sentences',
                         'three sample sentences',

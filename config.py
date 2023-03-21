@@ -8,8 +8,8 @@ class CustomConfig:
     train_data_file = ''
     dev_data_file = ''
     test_data_file = ''
-    pretrained_model_fold = ''
-    save_res_fold = ''
+    pretrained_model_fold = './saved_model'
+    save_res_fold = './saved_res'
     
     test_model_path = ''
     
