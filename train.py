@@ -49,14 +49,15 @@ def eval_main(model, eval_dataloader, config, logger):
     
     eval_fn_list = [
         binary_f1_score, 
-        binary_accuracy,
         binary_precision,
-        binary_recall
+        binary_recall,
+        binary_accuracy,
     ]
     eval_res = [
         [eval_fn(pred[:, p], groundtruth[:, p]) for eval_fn in eval_fn_list]
         for p in range(cls_cnt) 
     ]
+    eval_res = np.array(eval_res)
     
     def show_res():
         lines = [
@@ -65,7 +66,7 @@ def eval_main(model, eval_dataloader, config, logger):
         for p, cls_name in enumerate(['hd', 'cv', 'vo']):
             cur_line = [cls_name]
             cur_line.extend(
-                list(map(lambda x:f'{x:6.2f}' , eval_res[p]))
+                list(map(lambda x:f'{x:6.4f}' , eval_res[p]))
             )
             lines.append(' '.join(cur_line))
         logger.info(*lines, sep='\n')
@@ -80,12 +81,6 @@ def train_main(config: CustomConfig):
         fname = fname.replace(':', '_')
         fname = fname.replace(' ', '_')
         return fname
-    
-    config.device = 'cuda'
-    config.cuda_id = '5'
-    config.just_test = False
-    if not path(config.saved_model_fold).exists():
-        os.mkdir(config.saved_model_fold)
     
     device = config.device
     os.environ['CUDA_VISIBLE_DEVICES'] = config.cuda_id
@@ -103,7 +98,7 @@ def train_main(config: CustomConfig):
         log_with_time=False,
     )
     
-    logger.info(*config.as_list())
+    logger.info(*config.as_list(), sep='\n')
     logger.info(get_cur_time())
     
     train_data = preprocess_train_data(config.train_data_file)
@@ -129,7 +124,7 @@ def train_main(config: CustomConfig):
     for epoch in range(1, config.epochs+1):
         model.train()
         tot_loss = AverageMeter()
-        for x, y in train_data:
+        for p, (x, y) in enumerate(train_data):
             y = y.to(device)
             output = model(x)
             loss = criterion(output.view(-1, 2), y.view(-1))
@@ -137,20 +132,56 @@ def train_main(config: CustomConfig):
             tot_loss += loss
             optimizer.step()
             optimizer.zero_grad()
+            # scheduler.step()
             if config.just_test:
                 break
-        print(f'epoch{epoch} loss: {tot_loss/len(train_data)}')
-        eval_res = eval_main(model, dev_data, config)
+            p += 1
+            if p % config.pb_frequency == 0 or p == len(train_data):
+                logger.info(
+                    f'batch[{p}/{len(train_data)}], loss: {tot_loss.average:.6f}'
+                )
+
+        eval_res = eval_main(model, dev_data, config, logger)
+        average_f1 = np.average(eval_res[:, 0])
+        
+        logger.info(
+            f'epoch{epoch} ends\n'
+            f'average of f1: {average_f1:.4f}'
+        )
         if config.just_test:
             break   
         
-        torch.save(
-            model.parameters(),
-            f'{config.saved_model_fold}/{get_cur_time()}_{config.version}_{config.model_name}_epoch{epoch}.pth'
-        )
+        if epoch % config.save_model_epoch == 0:
+            saved_model_file = (
+                f'{start_time}_'
+                f'epoch{epoch}_'
+                f'{int(average_f1*1000)}'
+                '.pth'
+            )
+            torch.save(
+                model.parameters(),
+                saved_model_fold / saved_model_file
+            )
+    logger.info('=== finish training ===')
+    logger.info(get_cur_time())
+    logger.close()
+    del logger
 
 
 if __name__ == '__main__':
-    custom_config = CustomConfig()
-    
-    train_main()
+    def get_config_base_test():
+        config = CustomConfig()
+        config.device = 'cuda'
+        config.cuda_id = '6'
+
+        config.just_test = True
+        config.save_model_epoch = 1
+        config.pb_frequency = 20
+        config.batch_size = 8
+        config.lr = 5e-5
+        
+        config.train_data_file = train_data_file_list[0]
+        config.dev_data_file = ''
+        return config
+        
+    train_main(get_config_base_test())
