@@ -1,3 +1,4 @@
+import logging
 import datetime
 import time
 import os
@@ -62,16 +63,90 @@ def get_all_files(root_fold:Union[path, str], recursion:bool=False):
 
 
 def try_remove(root_fold:Union[path, str], recursion:bool=False):
+    import shutil
     root_fold = path(root_fold)
     if not root_fold.exists():
         return
-    if recursion:
-        for nxt in get_all_files(root_fold):
-            try_remove(nxt, True)
-    os.remove(root_fold)
+    else:
+        shutil.rmtree(root_fold)
+
+
+def get_cur_time(time_zone_hours=8):
+    time_zone = datetime.timezone(offset=datetime.timedelta(hours=time_zone_hours))
+    cur_time = datetime.datetime.now(time_zone)
+    return cur_time.strftime('%Y-%m-%d_%H:%M:%S')
+
+
+class MyLogger:
+    def __init__(self, fold='', file='', info='', just_print=False, log_with_time=True) -> None:
+        self.logger = logging.getLogger(str(datetime.datetime.now()))
+        self.just_print = just_print
+        self.log_with_time = log_with_time
     
+        self.logger.setLevel(logging.DEBUG)
+        
+        if self.log_with_time:
+            formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%Y-%m-%d_%H:%M:%S')
+        else:
+            formatter = logging.Formatter('%(message)s')
+            
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        self.logger.addHandler(console_handler)
+        
+        if not self.just_print:
+            if not fold:
+                fold = f'saved_res/{get_cur_time()}_{info}'
+            if not file:
+                file = f'{get_cur_time()}_{info}.out'
+            self.log_file = path(fold)/path(file)
+            self.log_file.parent.mkdir(parents=True, exist_ok=True)
+            self.info(f'LOG FILE >> {self.log_file}')
+            
+            file_handler = logging.FileHandler(self.log_file)
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+    
+    def info(self, *args, sep=' '):
+        self.logger.info(sep.join(map(str, args)))
+    
+    def close(self):
+        for handler in self.logger.handlers:
+            handler.close()
+            self.logger.removeHandler(handler)
+
+
+
+class AverageMeter:
+    def __init__(self) -> None:
+        self.reset()
+        
+    def reset(self):
+        self.n = 0
+        self.val = 0
+        self.sum = 0
+        self.average = 0
+    
+    def add(self, val, n=1):
+        self.n += n
+        self.val = val
+        self.sum += val
+        self.average = self.sum / self.n
+
+    def __add__(self, val):
+        self.add(val)
+        
     
 if __name__ == '__main__':
     # for d in get_all_files('.'):
-    for d in clock(get_all_files)(os.getcwd(), True)[:5]:  # type: ignore        
-        print(d)
+    # for d in clock(get_all_files)(os.getcwd(), True)[:5]:  # type: ignore        
+    #     print(d)
+    # print(get_cur_time().replace(':', '-'))
+    
+    # test_logger = MyLogger(log_with_time=True, just_print=True)
+    # for root, dirs, files in os.walk('./'):
+    #     test_logger.info(root, dirs, files)
+    
+    import shutil
+    shutil.rmtree('./saved_res/')
+    pass

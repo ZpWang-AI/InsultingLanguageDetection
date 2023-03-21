@@ -3,13 +3,15 @@ import logging
 import torch
 import torch.nn as nn
 
+from pathlib import Path as path
 from torch.nn import functional as F
-from transformers import (AutoModel,
-                          AutoModelForSequenceClassification,
-                          AutoTokenizer,
-                          AutoConfig,
-                          XLMRobertaForSequenceClassification
-                          )
+from transformers import (
+    AutoModel,
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    AutoConfig,
+    XLMRobertaForSequenceClassification
+)
 
 
 class ClassificationHead(nn.Module):
@@ -44,9 +46,10 @@ class BertModel(nn.Module):
         self.decoder_list = nn.ModuleList(ClassificationHead(self.model_config)for _ in range(3))
         # self.model = AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels=2)
     
-    def get_pretrained_encoder(self):
-        logging.getLogger("transformers").setLevel(logging.ERROR)
-        self.encoder = self.encoder.from_pretrained(self.config.model_name)
+    def get_pretrained_encoder(self, cache_dir='./saved_model'):
+        # logging.getLogger("transformers").setLevel(logging.ERROR)
+        path(cache_dir).mkdir(parents=True, exist_ok=True)
+        self.encoder = self.encoder.from_pretrained(self.config.model_name, cache_dir=cache_dir)
         self.to(self.config.device)
     
     def freeze_encoder(self):

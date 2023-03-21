@@ -1,11 +1,11 @@
 import os
+import logging
+import warnings
 import torch
 import torch.nn as nn
 
-from config import *
-from corpus import deal_train_data, deal_test_data, CustomDataset
-from model.baseline import BertModel
-
+from tqdm import tqdm
+from pathlib import Path as path
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from torcheval.metrics.functional import (
@@ -14,39 +14,60 @@ from torcheval.metrics.functional import (
     multiclass_precision,
     multiclass_recall,
     multiclass_confusion_matrix,
+    binary_f1_score,
+    binary_accuracy,
+    binary_precision,
+    binary_recall,
+    binary_confusion_matrix
 )
-from torcheval.metrics.functional import multiclass_f1_score
+
+from utils import get_cur_time
+from config import *
+from corpus import deal_train_data, deal_test_data, CustomDataset
+from model.baseline import BertModel
 
 
-def eval_main(model, eval_dataloader):
+def eval_main(model, eval_dataloader, config):
     model.eval()
     pred, groundtruth = [], []
     with torch.no_grad():
         for x, y in eval_dataloader:
-            output = model(x)
+            output = model.predict(x)
             pred.append(output)
             groundtruth.append(y)
-    pred = torch.cat(pred)
-    groundtruth = torch.cat(groundtruth)
-    eval_res = {
-        'macro_f1': multiclass_f1_score(pred, groundtruth, num_classes=2, average='macro'),
-        'micro_f1': multiclass_f1_score(pred, groundtruth, num_classes=2, average='micro'),
-        'accuracy': multiclass_accuracy(pred, groundtruth, num_classes=2),
-        'precision': multiclass_precision(pred, groundtruth, num_classes=2),
-        'recall': multiclass_recall(pred, groundtruth, num_classes=2),
-    }
-    print(eval_res)
-    confusion_matrix = multiclass_confusion_matrix(pred, groundtruth, num_classes=2)
-    print(confusion_matrix)
-    print(pred)
-    print(groundtruth)
+            if config.just_test:
+                break
+    pred = torch.cat(pred, dim=0).cpu()
+    groundtruth = torch.cat(groundtruth, dim=0).cpu()
+    # print(pred, groundtruth)
+    n_sample, cls_cnt = groundtruth.shape
+    # print(n_sample, cls_cnt)
+    
+    eval_fn_list = [binary_f1_score, binary_accuracy, binary_precision, binary_recall]
+    eval_res = [
+        [eval_fn(pred[:, p], groundtruth[:, p]) for p in range(cls_cnt)] for eval_fn in eval_fn_list
+    ]
+    
+    def show_res():
+        lines = [[' '*9, 'hd'.rjust(6), 'cv'.rjust(6), 'vo'.rjust(6)]]+[
+            [eval_fn.__name__[7:].ljust(9), 
+             *map(lambda x: f'{x*100:6.2f}', eval_res[p])]
+                for p, eval_fn in enumerate(eval_fn_list)
+        ]
+        for line in lines:
+            print(' '.join(line))
+    
+    show_res()
+    return eval_res
     
 
 def train_main():
     config = get_default_config()
     config.device = 'cuda'
-    config.cuda_id = '0'
-    config.just_test = True
+    config.cuda_id = '5'
+    config.just_test = False
+    if not path(config.saved_model_fold).exists():
+        os.mkdir(config.saved_model_fold)
     
     device = config.device
     os.environ['CUDA_VISIBLE_DEVICES'] = config.cuda_id
@@ -64,18 +85,26 @@ def train_main():
     
     for epoch in range(1, config.epochs+1):
         model.train()
-        for x, y in train_data:
+        tot_loss = 0
+        for x, y in tqdm(train_data, desc=f'epoch{epoch}'):
             y = y.to(device)
             output = model(x)
             loss = criterion(output.view(-1, 2), y.view(-1))
+            tot_loss += loss
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
             if config.just_test:
                 break
-        # eval_res = eval_main(model, dev_data)
+        print(f'epoch{epoch} loss: {tot_loss/len(train_data)}')
+        eval_res = eval_main(model, dev_data, config)
         if config.just_test:
             break   
+        
+        torch.save(
+            model.parameters(),
+            f'{config.saved_model_fold}/{get_cur_time()}_{config.version}_{config.model_name}_epoch{epoch}.pth'
+        )
 
 
 if __name__ == '__main__':

@@ -5,6 +5,9 @@ class Config:
     device = 'cpu'
     cuda_id = '0'
     
+    saved_model_fold = 'saved_model'
+    saved_result_file = 'saved_res.txt'
+    
     base = True
     just_test = False
     
