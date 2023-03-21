@@ -10,13 +10,17 @@ from torch.utils.data import Dataset, DataLoader
 from typing import *
 from pathlib import Path as path
 
-from config import get_default_config
+from config import CustomConfig
 
 # warnings.filterwarnings("ignore")
 
 
-train_data_path = './data/ghc_train.tsv'
-test_data_path = './data/ghc_test.tsv'
+train_data_file_list = [
+    './data/ghc_train.tsv'
+]
+test_data_file_list = [
+    './data/ghc_test.tsv'
+]
 
 
 def read_csv(file_path):
@@ -27,16 +31,25 @@ def read_csv(file_path):
         #     content.append(row)
     return content
 
-def deal_train_data():
-    train_data = read_csv(train_data_path)[1:]
-    train_data = [[str(p[0]), int(p[1]), int(p[2]), int(p[3])]for p in train_data]
-    return train_data
 
-def deal_test_data():
-    test_data = read_csv(test_data_path)[1:]
-    test_data = [[str(p[0]), int(p[1]), int(p[2]), int(p[3])]for p in test_data]
-    return test_data
-
+def preprocess_train_data(train_data_file=train_data_file_list[0]):
+    if train_data_file == train_data_file_list[0]:
+        train_content = pd.read_csv(train_data_file, sep='\t')
+        train_content = np.array(train_content)
+        # train_data = [[str(p[0]), int(p[1]), int(p[2]), int(p[3])]for p in train_data]
+        return train_content
+    else:
+        raise 'Wrong train data file'
+    
+def preprocess_test_data(test_data_file=test_data_file_list[0]):
+    if test_data_file == test_data_file_list[0]:
+        test_content = pd.read_csv(test_data_file, sep='\t')
+        test_content = np.array(test_content)
+        # test_data = [[str(p[0]), int(p[1]), int(p[2]), int(p[3])]for p in test_data]
+        return test_content
+    else:
+        raise 'Wrong test data file'
+    
 
 class CustomDataset(Dataset):
     def __init__(self, data, config) -> None:
@@ -65,13 +78,17 @@ class CustomDataset(Dataset):
 
 if __name__ == '__main__':
 
-    sample_train_data = deal_train_data()
-    sample_test_data = deal_test_data()
+    sample_train_data = preprocess_train_data(train_data_file_list[0])
+    sample_test_data = preprocess_test_data(test_data_file_list[0])
+    
+    # print(sample_train_data[:3])
+    # print(sample_test_data[:3])
+    # exit()
     
     # for line in sample_train_data[1:3]:
     #     print(line)
 
-    sample_config = get_default_config()
+    sample_config = CustomConfig()
     sample_train_data = CustomDataset(sample_train_data, sample_config)
     sample_train_data = DataLoader(sample_train_data, batch_size=5, shuffle=False)
     for sample_input in sample_train_data:
