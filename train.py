@@ -94,7 +94,7 @@ def train_main(config: CustomConfig):
     logger = MyLogger(
         fold=saved_res_fold, 
         file=f'{start_time}_{config.version}.out',
-        just_print=config.just_test,
+        just_print=False,
         log_with_time=False,
     )
     
@@ -159,7 +159,7 @@ def train_main(config: CustomConfig):
                 '.pth'
             )
             torch.save(
-                model.parameters(),
+                model.state_dict(),
                 saved_model_fold / saved_model_file
             )
     logger.info('=== finish training ===')
@@ -174,9 +174,10 @@ if __name__ == '__main__':
         config.device = 'cuda'
         config.cuda_id = '6'
 
-        config.just_test = True
+        # config.just_test = True
         config.save_model_epoch = 1
         config.pb_frequency = 20
+        config.epochs = 1
         config.batch_size = 8
         config.lr = 5e-5
         

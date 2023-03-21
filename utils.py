@@ -95,10 +95,11 @@ class MyLogger:
         self.logger.addHandler(console_handler)
         
         if not self.just_print:
+            cur_time = get_cur_time().replace(':', '_')
             if not fold:
-                fold = f'saved_res/{get_cur_time()}_{info}'
+                fold = f'saved_res/{cur_time}_{info}'
             if not file:
-                file = f'{get_cur_time()}_{info}.out'
+                file = f'{cur_time}_{info}.out'
             self.log_file = path(fold)/path(file)
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
             self.info(f'LOG FILE >> {self.log_file}')
