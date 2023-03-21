@@ -135,6 +135,7 @@ class AverageMeter:
 
     def __add__(self, val):
         self.add(val)
+        return self
         
     
 if __name__ == '__main__':
@@ -147,6 +148,7 @@ if __name__ == '__main__':
     # for root, dirs, files in os.walk('./'):
     #     test_logger.info(root, dirs, files)
     
-    import shutil
-    shutil.rmtree('./saved_res/')
+    a = AverageMeter()
+    a += 10
+    print(a.val)
     pass

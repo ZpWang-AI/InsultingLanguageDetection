@@ -16,6 +16,7 @@ class CustomConfig:
     input_feature = 'a'
     
     base = True
+    freeze_encoder = True
     clip = False
     just_test = False
         
