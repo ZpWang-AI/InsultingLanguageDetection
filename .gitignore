@@ -1,12 +1,18 @@
-test*
-
-__pycache__
-.vscode
-
 data/*
 !data/ghc_test.tsv
 !data/ghc_train.tsv
 
-*.zip
-MACAS-main
 
+saved_res/*/*
+
+
+saved_model/*
+
+
+test*
+*.sh
+*.zip
+nohup.out
+
+__pycache__
+.vscode
