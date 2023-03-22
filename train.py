@@ -58,6 +58,7 @@ def eval_main(model, eval_dataloader, config, logger):
         for p in range(cls_cnt) 
     ]
     eval_res = np.array(eval_res)
+    print(eval_res)
     
     def show_res():
         lines = [
@@ -124,6 +125,7 @@ def train_main(config: CustomConfig):
     for epoch in range(1, config.epochs+1):
         model.train()
         tot_loss = AverageMeter()
+        epoch_start_time = time.time()
         for p, (x, y) in enumerate(train_data):
             y = y.to(device)
             output = model(x)
@@ -137,16 +139,23 @@ def train_main(config: CustomConfig):
                 break
             p += 1
             if p % config.pb_frequency == 0 or p == len(train_data):
+                epoch_running_time = time.time()-epoch_start_time
+                epoch_remain_time = epoch_running_time/p*(len(train_data)-p)
+                epoch_running_time = datetime.timedelta(seconds=int(epoch_running_time))
+                epoch_remain_time = datetime.timedelta(seconds=int(epoch_remain_time))
                 logger.info(
-                    f'batch[{p}/{len(train_data)}], loss: {tot_loss.average:.6f}'
+                    f'batch[{p}/{len(train_data)}]',
+                    f'time[{epoch_running_time}/{epoch_remain_time}]',
+                    f'loss: {tot_loss.average:.6f}',
+                    sep=', '
                 )
 
         eval_res = eval_main(model, dev_data, config, logger)
         average_f1 = np.average(eval_res[:, 0])
         
         logger.info(
-            f'epoch{epoch} ends\n'
-            f'average of f1: {average_f1:.4f}'
+            f'epoch{epoch} ends, '
+            f'average of f1: {average_f1:.4f}\n'
         )
         if config.just_test:
             break   
@@ -162,6 +171,7 @@ def train_main(config: CustomConfig):
                 model.state_dict(),
                 saved_model_fold / saved_model_file
             )
+            
     logger.info('=== finish training ===')
     logger.info(get_cur_time())
     logger.close()

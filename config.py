@@ -13,8 +13,6 @@ class CustomConfig:
     
     test_model_path = ''
     
-    input_feature = 'a'
-    
     base = True
     freeze_encoder = True
     clip = False
