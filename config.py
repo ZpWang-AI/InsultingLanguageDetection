@@ -15,6 +15,8 @@ class CustomConfig:
     
     base = True
     freeze_encoder = True
+    downsample_data = True
+    downsample_ratio = 0.1
     clip = False
     just_test = False
         

@@ -118,6 +118,8 @@ def train_main(config: CustomConfig):
         train_data, dev_data = train_test_split(train_data, train_size=0.8, shuffle=True)
     else:
         dev_data = preprocess_train_data(config.dev_data_file)
+    if config.downsample_data:
+        train_data = downsample_data(train_data, config.downsample_ratio)
         
     logger.info(get_data_info(train_data, 'train'))
     logger.info(get_data_info(dev_data, 'dev'))
@@ -145,11 +147,6 @@ def train_main(config: CustomConfig):
             y = y.to(device)  # bsz, cls
             output = model(x)  # bsz, cls, 2
             loss = criterion(output.view(-1, 2), y.view(-1))  # (output)bsz*cls, 2  (y)bsz*cls
-            print(y)
-            print(y.shape)
-            print(y.view(-1))
-            print(y.view(-1).shape)
-            exit()
             loss.backward()
             tot_loss += loss
             optimizer.step()
@@ -170,6 +167,9 @@ def train_main(config: CustomConfig):
                     sep=', '
                 )
 
+        logger.info('evaluate train')
+        eval_main(model, train_data, config, logger)
+        logger.info('evaluate dev')
         eval_res = eval_main(model, dev_data, config, logger)
         average_f1 = np.average(eval_res[:, 0])
         
@@ -201,11 +201,14 @@ def train_main(config: CustomConfig):
 if __name__ == '__main__':
     def get_config_base_test():
         config = CustomConfig()
+        config.model_name = 'bert-base-uncased'
         config.device = 'cuda'
         config.cuda_id = '6'
 
         # config.just_test = True
         config.freeze_encoder = False
+        config.downsample_data = False
+        config.downsample_ratio = 0.1
         config.save_model_epoch = 1
         config.pb_frequency = 20
 
@@ -217,5 +220,7 @@ if __name__ == '__main__':
         config.train_data_file = train_data_file_list[0]
         config.dev_data_file = ''
         return config
+    
+    def get_
         
     train_main(get_config_base_test())
