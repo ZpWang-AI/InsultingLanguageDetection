@@ -49,7 +49,21 @@ def preprocess_test_data(test_data_file=test_data_file_list[0]):
         return test_content
     else:
         raise 'Wrong test data file'
-    
+
+def get_data_info(data, info=''):
+    return ' '.join(map(str, [
+        f'{info:5s} data info:',   
+        np.sum(data[:,1:], axis=0), 
+        len(data),
+    ]))
+
+def downsample_data(train_data, ratio=0.1):
+    downsampled_data = []
+    for piece in train_data:
+        if np.sum(piece[1:]) != 0 or np.random.rand() < ratio:
+            downsampled_data.append(piece)
+    return np.stack(downsampled_data, axis=0)
+
 
 class CustomDataset(Dataset):
     def __init__(self, data, config) -> None:
@@ -80,6 +94,13 @@ if __name__ == '__main__':
 
     sample_train_data = preprocess_train_data(train_data_file_list[0])
     sample_test_data = preprocess_test_data(test_data_file_list[0])
+    
+    print(get_data_info(sample_train_data, 'init'))
+    print(sample_train_data.shape)
+    sample_downsampled_train_data = downsample_data(sample_train_data)
+    print(sample_downsampled_train_data.shape)
+    print(get_data_info(sample_downsampled_train_data, 'downsampled'))
+    exit()
     
     # print(sample_train_data[:3])
     # print(sample_test_data[:3])

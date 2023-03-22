@@ -64,17 +64,17 @@ class BertModel(nn.Module):
             param.requires_grad = False
     
     def forward(self, input):
-        input = self.tokenizer(input, padding=True, truncation=True, max_length=512, return_tensors='pt')
+        input = self.tokenizer(input, padding=True, truncation=True, max_length=256, return_tensors='pt')
         input.to(self.config.device)
         feature = self.encoder(**input)
-        logits_list = [decoder(feature[0])for decoder in self.decoder_list]
-        probs_list = [F.softmax(logits, dim=-1)for logits in logits_list]
+        logits_list = [decoder(feature[0])for decoder in self.decoder_list]  # bsz, cls(3), 2
+        probs_list = [F.softmax(logits, dim=-1)for logits in logits_list]  # bsz, cls, 2
         output = torch.stack(probs_list, dim=1)
         return output
     
     def predict(self, input):
         output = self(input)
-        preds = torch.argmax(output, dim=-1)
+        preds = torch.argmax(output, dim=-1)  # bsz, cls(3)
         return preds
 
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         
         pretrained_model_fold = './saved_model'
     
-    os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '7'
     
     sample_sentences = ['a sample sentence', 
                         'two sample sentences',
@@ -94,7 +94,7 @@ if __name__ == '__main__':
                         ]
     sample_model = BertModel(SampleConfig())
     sample_model.get_pretrained_encoder()
-    sample_model.freeze_encoder()
+    # sample_model.freeze_encoder()
     sample_model.to(SampleConfig.device)
     sample_model.eval()
     sample_output = sample_model(sample_sentences)

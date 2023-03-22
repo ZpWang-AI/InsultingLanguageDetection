@@ -25,6 +25,8 @@ from corpus import (
     test_data_file_list,
     preprocess_train_data,
     preprocess_test_data,
+    get_data_info,
+    downsample_data,
     CustomDataset,
 )
 from model.baseline import BertModel
@@ -46,6 +48,7 @@ def eval_main(model, eval_dataloader, config, logger):
     # print(pred, groundtruth)
     n_sample, cls_cnt = groundtruth.shape
     # print(n_sample, cls_cnt)
+    cls_list = ['hd', 'cv', 'vo']
     
     eval_fn_list = [
         binary_f1_score, 
@@ -58,19 +61,27 @@ def eval_main(model, eval_dataloader, config, logger):
         for p in range(cls_cnt) 
     ]
     eval_res = np.array(eval_res)
-    print(eval_res)
     
     def show_res():
         lines = [
             ' '.join(['  ']+[eval_fn.__name__[7:]for eval_fn in eval_fn_list]),
         ]
-        for p, cls_name in enumerate(['hd', 'cv', 'vo']):
+        for p, cls_name in enumerate(cls_list):
             cur_line = [cls_name]
             cur_line.extend(
                 list(map(lambda x:f'{x:6.4f}' , eval_res[p]))
             )
             lines.append(' '.join(cur_line))
         logger.info(*lines, sep='\n')
+
+        for p, cls_name in enumerate(cls_list):
+            confusion_matrix = binary_confusion_matrix(pred[:, p], groundtruth[:, p])
+            lines = [
+                f'{cls_name:4s} pred_0 pred_1',
+                f'gt_0 {confusion_matrix[0][0]:5d} {confusion_matrix[0][1]:5d}',
+                f'gt_1 {confusion_matrix[1][0]:5d} {confusion_matrix[1][1]:5d}',
+            ]
+            logger.info(*lines, sep='\n')
     
     show_res()
     return eval_res
@@ -107,6 +118,10 @@ def train_main(config: CustomConfig):
         train_data, dev_data = train_test_split(train_data, train_size=0.8, shuffle=True)
     else:
         dev_data = preprocess_train_data(config.dev_data_file)
+        
+    logger.info(get_data_info(train_data, 'train'))
+    logger.info(get_data_info(dev_data, 'dev'))
+    
     train_data = CustomDataset(train_data, config)
     train_data = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
     dev_data = CustomDataset(dev_data, config)
@@ -127,9 +142,14 @@ def train_main(config: CustomConfig):
         tot_loss = AverageMeter()
         epoch_start_time = time.time()
         for p, (x, y) in enumerate(train_data):
-            y = y.to(device)
-            output = model(x)
-            loss = criterion(output.view(-1, 2), y.view(-1))
+            y = y.to(device)  # bsz, cls
+            output = model(x)  # bsz, cls, 2
+            loss = criterion(output.view(-1, 2), y.view(-1))  # (output)bsz*cls, 2  (y)bsz*cls
+            print(y)
+            print(y.shape)
+            print(y.view(-1))
+            print(y.view(-1).shape)
+            exit()
             loss.backward()
             tot_loss += loss
             optimizer.step()
@@ -185,12 +205,15 @@ if __name__ == '__main__':
         config.cuda_id = '6'
 
         # config.just_test = True
+        config.freeze_encoder = False
         config.save_model_epoch = 1
         config.pb_frequency = 20
-        config.epochs = 1
+
+        config.epochs = 10
         config.batch_size = 8
         config.lr = 5e-5
         
+        config.version = 'baseline'
         config.train_data_file = train_data_file_list[0]
         config.dev_data_file = ''
         return config
