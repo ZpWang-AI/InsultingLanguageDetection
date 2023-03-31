@@ -32,8 +32,22 @@ from corpus import (
 from model.baseline import BaselineModel
 
 
+cls_list = ['hd', 'cv', 'vo']
+def get_gt_by_config(gt, config:CustomConfig):
+    # gt: bsz, cls(3)
+    # config.share_encoder: True/False
+    # config.cls_target_list: hd, cv, vo, hd+vo, hd+cv+vo
+    if config.share_encoder:
+        return gt
+    else:
+        res = torch.zeros_like(gt, dtype=gt.dtype)
+        for cls_target in config.cls_target.split('+'):
+            res |= gt[:,cls_list.index(cls_target)]
+        return res
+    
+
 @clock
-def eval_main(model, eval_dataloader, config, logger):
+def eval_main(model, eval_dataloader, config:CustomConfig, logger):
     model.eval()
     pred, groundtruth = [], []
     with torch.no_grad():
@@ -45,45 +59,49 @@ def eval_main(model, eval_dataloader, config, logger):
                 break
     pred = torch.cat(pred, dim=0).cpu()
     groundtruth = torch.cat(groundtruth, dim=0).cpu()
+    groundtruth = get_gt_by_config(groundtruth, config)
     # print(pred, groundtruth)
-    n_sample, cls_cnt = groundtruth.shape
-    # print(n_sample, cls_cnt)
-    cls_list = ['hd', 'cv', 'vo']
     
-    eval_fn_list = [
-        binary_f1_score, 
-        binary_precision,
-        binary_recall,
-        binary_accuracy,
-    ]
-    eval_res = [
-        [eval_fn(pred[:, p], groundtruth[:, p]) for eval_fn in eval_fn_list]
-        for p in range(cls_cnt) 
-    ]
-    eval_res = np.array(eval_res)
-    
-    def show_res():
-        lines = [
-            ' '.join(['  ']+[eval_fn.__name__[7:]for eval_fn in eval_fn_list]),
+    if config.share_encoder:
+        cls_cnt = 3
+        eval_fn_list = [
+            binary_f1_score, 
+            binary_precision,
+            binary_recall,
+            binary_accuracy,
         ]
-        for p, cls_name in enumerate(cls_list):
-            cur_line = [cls_name]
-            cur_line.extend(
-                list(map(lambda x:f'{x:6.4f}' , eval_res[p]))
-            )
-            lines.append(' '.join(cur_line))
-        logger.info(*lines, sep='\n')
-
-        for p, cls_name in enumerate(cls_list):
-            confusion_matrix = binary_confusion_matrix(pred[:, p], groundtruth[:, p])
+        eval_res = [
+            [eval_fn(pred[:, p], groundtruth[:, p]) for eval_fn in eval_fn_list]
+            for p in range(cls_cnt) 
+        ]
+        eval_res = np.array(eval_res)
+        
+        def show_res_multi():
             lines = [
-                f'{cls_name:4s} pred_0 pred_1',
-                f'gt_0 {confusion_matrix[0][0]:5d} {confusion_matrix[0][1]:5d}',
-                f'gt_1 {confusion_matrix[1][0]:5d} {confusion_matrix[1][1]:5d}',
+                ' '.join(['  ']+[eval_fn.__name__[7:]for eval_fn in eval_fn_list]),
             ]
+            for p, cls_name in enumerate(cls_list):
+                cur_line = [cls_name]
+                cur_line.extend(
+                    list(map(lambda x:f'{x:6.4f}' , eval_res[p]))
+                )
+                lines.append(' '.join(cur_line))
             logger.info(*lines, sep='\n')
-    
-    show_res()
+
+            for p, cls_name in enumerate(cls_list):
+                confusion_matrix = binary_confusion_matrix(pred[:, p], groundtruth[:, p])
+                lines = [
+                    f'{cls_name:4s} pred_0 pred_1',
+                    f'gt_0 {confusion_matrix[0][0]:5d} {confusion_matrix[0][1]:5d}',
+                    f'gt_1 {confusion_matrix[1][0]:5d} {confusion_matrix[1][1]:5d}',
+                ]
+                logger.info(*lines, sep='\n')
+        
+        show_res_multi()
+    else:
+        cls_cnt = 1
+
+        # TODO
     return eval_res
     
 
@@ -211,6 +229,7 @@ if __name__ == '__main__':
         config.downsample_data = True
         config.downsample_ratio = 0.1
         config.share_encoder = True
+        config.cls_target = 'hd'
         
         config.save_model_epoch = 1
         config.pb_frequency = 20

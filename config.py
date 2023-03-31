@@ -18,7 +18,7 @@ class CustomConfig:
     downsample_data = True
     downsample_ratio = 0.1
     share_encoder = False
-    train_cls_target = 'hd'  # hd cv vo hd+vo hd+cv+vo..
+    cls_target = 'hd'  # hd cv vo hd+vo hd+cv+vo..
     clip = False
     just_test = False
         
