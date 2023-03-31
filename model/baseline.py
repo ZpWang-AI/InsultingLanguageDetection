@@ -14,6 +14,7 @@ from transformers import (
 )
 # from config import CustomConfig
 
+
 class ClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
@@ -36,7 +37,7 @@ class ClassificationHead(nn.Module):
         return x
 
 
-class BertModel(nn.Module):
+class BaselineModel(nn.Module):
     def __init__(self, 
                  config,
                 #  config: CustomConfig,
@@ -49,7 +50,10 @@ class BertModel(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(config.model_name,
                                                        cache_dir=config.pretrained_model_fold)
         self.encoder = AutoModel.from_config(self.model_config)
-        self.decoder_list = nn.ModuleList(ClassificationHead(self.model_config)for _ in range(3))
+        if config.share_encoder:
+            self.decoder_list = nn.ModuleList(ClassificationHead(self.model_config)for _ in range(3))
+        else:
+            self.decoder = ClassificationHead(self.model_config)
         # self.model = AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels=2)
     
     def get_pretrained_encoder(self):
@@ -64,17 +68,27 @@ class BertModel(nn.Module):
             param.requires_grad = False
     
     def forward(self, input):
-        input = self.tokenizer(input, padding=True, truncation=True, max_length=256, return_tensors='pt')
+        input = self.tokenizer(input, padding=True, truncation=True, max_length=512, return_tensors='pt')
         input.to(self.config.device)
         feature = self.encoder(**input)
-        logits_list = [decoder(feature[0])for decoder in self.decoder_list]  # bsz, cls(3), 2
-        probs_list = [F.softmax(logits, dim=-1)for logits in logits_list]  # bsz, cls, 2
-        output = torch.stack(probs_list, dim=1)
-        return output
+        feature = feature[0]
+        # print(input)
+        # print(feature[0])
+        # print()
+        # print(feature[0].shape)
+        if self.config.share_encoder:
+            logits_list = [decoder(feature)for decoder in self.decoder_list]  # cls(3), bsz, 2
+            prob_list = [F.softmax(logits, dim=-1)for logits in logits_list]  # cls, bsz, 2
+            output = torch.stack(prob_list, dim=1)  # bsz, cls, 2
+            return output
+        else:
+            logits = self.decoder(feature)  # bsz, 2
+            prob = F.softmax(logits, dim=-1)  # bsz, 2
+            return prob
     
     def predict(self, input):
-        output = self(input)
-        preds = torch.argmax(output, dim=-1)  # bsz, cls(3)
+        output = self(input)  # bsz, cls, 2 or bsz, 2
+        preds = torch.argmax(output, dim=-1)  # bsz, cls(3) or bsz
         return preds
 
 
@@ -84,15 +98,19 @@ if __name__ == '__main__':
         device = 'cuda'
         
         pretrained_model_fold = './saved_model'
+        share_encoder = True
+        # share_encoder = False
+        
+    os.environ['CUDA_VISIBLE_DEVICES'] = '4'
     
-    os.environ['CUDA_VISIBLE_DEVICES'] = '7'
-    
-    sample_sentences = ['a sample sentence', 
-                        'two sample sentences',
-                        'three sample sentences',
-                        'four sample sentences '*1000,
-                        ]
-    sample_model = BertModel(SampleConfig())
+    sample_sentences = [
+        'a sample sentence', 
+        'two sample sentences',
+        'three sample sentences',
+        'four sample sentences '*1000,
+        # '谢谢关注',
+    ]
+    sample_model = BaselineModel(SampleConfig())
     sample_model.get_pretrained_encoder()
     # sample_model.freeze_encoder()
     sample_model.to(SampleConfig.device)

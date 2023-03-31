@@ -118,8 +118,8 @@ if __name__ == '__main__':
         break
     # exit()
     
-    from model.baseline import BertModel
-    sample_model = BertModel(sample_config)
+    from model.baseline import BaselineModel
+    sample_model = BaselineModel(sample_config)
     sample_criterion = nn.CrossEntropyLoss(reduction='sum')
     for sample_x, sample_y in sample_train_data:
         sample_output = sample_model(sample_x)

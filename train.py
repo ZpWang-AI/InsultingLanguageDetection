@@ -29,7 +29,7 @@ from corpus import (
     downsample_data,
     CustomDataset,
 )
-from model.baseline import BertModel
+from model.baseline import BaselineModel
 
 
 @clock
@@ -129,7 +129,7 @@ def train_main(config: CustomConfig):
     dev_data = CustomDataset(dev_data, config)
     dev_data = DataLoader(dev_data, batch_size=config.batch_size, shuffle=False)
     
-    model = BertModel(config)
+    model = BaselineModel(config)
     model.get_pretrained_encoder()
     if config.freeze_encoder:
         model.freeze_encoder()
@@ -160,9 +160,10 @@ def train_main(config: CustomConfig):
                 epoch_remain_time = epoch_running_time/p*(len(train_data)-p)
                 epoch_running_time = datetime.timedelta(seconds=int(epoch_running_time))
                 epoch_remain_time = datetime.timedelta(seconds=int(epoch_remain_time))
+                epoch_end_time = datetime.datetime.now(datetime.timezone(offset=datetime.timedelta(hours=8))) + epoch_remain_time
                 logger.info(
                     f'batch[{p}/{len(train_data)}]',
-                    f'time[{epoch_running_time}/{epoch_remain_time}]',
+                    f'time[run:{epoch_running_time}/remain:{epoch_remain_time}/end:{epoch_end_time.strftime("%Y-%m-%d_%H:%M:%S")}]',
                     f'loss: {tot_loss.average:.6f}',
                     sep=', '
                 )
@@ -203,12 +204,14 @@ if __name__ == '__main__':
         config = CustomConfig()
         config.model_name = 'bert-base-uncased'
         config.device = 'cuda'
-        config.cuda_id = '6'
+        config.cuda_id = '3'
 
         # config.just_test = True
         config.freeze_encoder = False
-        config.downsample_data = False
+        config.downsample_data = True
         config.downsample_ratio = 0.1
+        config.share_encoder = True
+        
         config.save_model_epoch = 1
         config.pb_frequency = 20
 
@@ -221,6 +224,6 @@ if __name__ == '__main__':
         config.dev_data_file = ''
         return config
     
-    # def get_
+    # def get_ /'
         
     train_main(get_config_base_test())
