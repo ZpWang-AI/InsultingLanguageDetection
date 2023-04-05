@@ -42,7 +42,7 @@ def get_gt_by_config(gt, config:CustomConfig):
     if config.share_encoder:
         return gt
     else:
-        res = torch.zeros(gt.shape[0], dtype=gt.dtype)
+        res = torch.zeros(gt.shape[0], dtype=gt.dtype).to(gt.device)
         for cls_target in config.cls_target.split('+'):
             res |= gt[:,cls_list.index(cls_target)]
         return res
@@ -50,6 +50,32 @@ def get_gt_by_config(gt, config:CustomConfig):
 
 @clock
 def eval_main(model, eval_dataloader, config:CustomConfig, logger:MyLogger):
+    eval_fn_list = [
+        binary_f1_score, 
+        binary_precision,
+        binary_recall,
+        binary_accuracy,
+    ]
+    
+    def eval_one_cls(pred_, gt_, cls_name):
+        logger.info(f'- {cls_name}')
+        
+        eval_cls_res = []
+        for eval_fn in eval_fn_list:
+            cur_res = eval_fn(pred_, gt_)
+            logger.info(f'{eval_fn.__name__[7:]:9s}: {cur_res:6.4f}')
+            eval_cls_res.append(cur_res)
+            
+        confusion_matrix = binary_confusion_matrix(pred_, gt_)
+        lines = [
+            f'{cls_name:4s} pred_0 pred_1',
+            f'gt_0 {confusion_matrix[0][0]:5d} {confusion_matrix[0][1]:5d}',
+            f'gt_1 {confusion_matrix[1][0]:5d} {confusion_matrix[1][1]:5d}',
+        ]
+        logger.info(*lines, sep='\n')
+
+        return eval_cls_res
+
     model.eval()
     pred, groundtruth = [], []
     with torch.no_grad():
@@ -64,48 +90,45 @@ def eval_main(model, eval_dataloader, config:CustomConfig, logger:MyLogger):
     groundtruth = get_gt_by_config(groundtruth, config)
     # print(pred, groundtruth)
     
-    eval_fn_list = [
-        binary_f1_score, 
-        binary_precision,
-        binary_recall,
-        binary_accuracy,
-    ]
-    
     if config.share_encoder:
-        cls_cnt = 3
-        eval_res = [
-            [eval_fn(pred[:, p], groundtruth[:, p]) for eval_fn in eval_fn_list]
-            for p in range(cls_cnt) 
-        ]
-        eval_res = np.array(eval_res)
+        eval_res = []
+        for cls_p in range(3):
+            eval_res.append(
+                eval_one_cls(pred[:,cls_p], groundtruth[:,cls_p], cls_list[cls_p])
+            )
+        # cls_cnt = 3
+        # eval_res = [
+        #     [eval_fn(pred[:, p], groundtruth[:, p]) for eval_fn in eval_fn_list]
+        #     for p in range(cls_cnt) 
+        # ]
+        # eval_res = np.array(eval_res)
         
-        def show_res_multi():
-            lines = [
-                ' '.join(['  ']+[eval_fn.__name__[7:]for eval_fn in eval_fn_list]),
-            ]
-            for p, cls_name in enumerate(cls_list):
-                cur_line = [cls_name]
-                cur_line.extend(
-                    list(map(lambda x:f'{x:6.4f}' , eval_res[p]))
-                )
-                lines.append(' '.join(cur_line))
-            logger.info(*lines, sep='\n')
+        # def show_res_multi():
+        #     lines = [
+        #         ' '.join(['  ']+[eval_fn.__name__[7:]for eval_fn in eval_fn_list]),
+        #     ]
+        #     for p, cls_name in enumerate(cls_list):
+        #         cur_line = [cls_name]
+        #         cur_line.extend(
+        #             list(map(lambda x:f'{x:6.4f}' , eval_res[p]))
+        #         )
+        #         lines.append(' '.join(cur_line))
+        #     logger.info(*lines, sep='\n')
 
-            for p, cls_name in enumerate(cls_list):
-                confusion_matrix = binary_confusion_matrix(pred[:, p], groundtruth[:, p])
-                lines = [
-                    f'{cls_name:4s} pred_0 pred_1',
-                    f'gt_0 {confusion_matrix[0][0]:5d} {confusion_matrix[0][1]:5d}',
-                    f'gt_1 {confusion_matrix[1][0]:5d} {confusion_matrix[1][1]:5d}',
-                ]
-                logger.info(*lines, sep='\n')
+        #     for p, cls_name in enumerate(cls_list):
+        #         confusion_matrix = binary_confusion_matrix(pred[:, p], groundtruth[:, p])
+        #         lines = [
+        #             f'{cls_name:4s} pred_0 pred_1',
+        #             f'gt_0 {confusion_matrix[0][0]:5d} {confusion_matrix[0][1]:5d}',
+        #             f'gt_1 {confusion_matrix[1][0]:5d} {confusion_matrix[1][1]:5d}',
+        #         ]
+        #         logger.info(*lines, sep='\n')
         
-        show_res_multi()
+        # show_res_multi()
     else:
-        cls_cnt = 1
+        eval_res = [eval_one_cls(pred, groundtruth, config.cls_target)]
 
-        # TODO
-    return eval_res
+    return np.array(eval_res)
     
 
 @clock(sym='-----')
@@ -124,6 +147,7 @@ def train_main(config: CustomConfig):
     saved_model_fold = saved_res_fold / path('saved_model')
     saved_model_fold.mkdir(parents=True, exist_ok=True)
     
+    warnings.filterwarnings('ignore')
     logger = MyLogger(
         fold=saved_res_fold, 
         file=f'{start_time}_{config.version}.out',
@@ -231,14 +255,14 @@ if __name__ == '__main__':
         config = CustomConfig()
         config.model_name = 'bert-base-uncased'
         config.device = 'cuda'
-        config.cuda_id = '3'
+        config.cuda_id = '7'
 
         # config.just_test = True
         config.freeze_encoder = False
         config.downsample_data = True
         config.downsample_ratio = 0.1
-        config.share_encoder = True
-        config.cls_target = 'hd'
+        config.share_encoder = False
+        config.cls_target = 'hd+cv+vo'
         
         config.save_model_epoch = 1
         config.pb_frequency = 20
@@ -247,7 +271,7 @@ if __name__ == '__main__':
         config.batch_size = 8
         config.lr = 5e-5
         
-        config.version = 'baseline'
+        config.version = 'bertBase-hd+cv+vo'
         config.train_data_file = train_data_file_list[0]
         config.dev_data_file = ''
         return config

@@ -3,7 +3,7 @@ import datetime
 import time
 import os
 import sys
-import threading
+import threading 
 
 from typing import *
 from pathlib import Path as path
@@ -117,7 +117,6 @@ class MyLogger:
             self.logger.removeHandler(handler)
 
 
-
 class AverageMeter:
     def __init__(self) -> None:
         self.reset()
@@ -145,11 +144,11 @@ if __name__ == '__main__':
     #     print(d)
     # print(get_cur_time().replace(':', '-'))
     
-    # test_logger = MyLogger(log_with_time=True, just_print=True)
-    # for root, dirs, files in os.walk('./'):
-    #     test_logger.info(root, dirs, files)
+    test_logger = MyLogger(log_with_time=False, just_print=False)
+    for root, dirs, files in os.walk('./'):
+        test_logger.info(root, dirs, files)
     
-    a = AverageMeter()
-    a += 10
-    print(a.val)
+    # a = AverageMeter()
+    # a += 10
+    # print(a.val)
     pass
