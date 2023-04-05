@@ -20,33 +20,9 @@ from torcheval.metrics.functional import (
 
 from utils import *
 from config import CustomConfig
-from corpus import (
-    train_data_file_list,
-    test_data_file_list,
-    preprocess_train_data,
-    preprocess_test_data,
-    get_data_info,
-    downsample_data,
-    CustomDataset,
-)
+from corpus import *
 from model.baseline import BaselineModel
 
-
-cls_list = ['hd', 'cv', 'vo']
-
-def get_gt_by_config(gt, config:CustomConfig):
-    # gt: bsz, cls(3)
-    # config.share_encoder: True/False
-    # config.cls_target_list: hd, cv, vo, hd+vo, hd+cv+vo
-    # return: bsz, cls or bsz
-    if config.share_encoder:
-        return gt
-    else:
-        res = torch.zeros(gt.shape[0], dtype=gt.dtype).to(gt.device)
-        for cls_target in config.cls_target.split('+'):
-            res |= gt[:,cls_list.index(cls_target)]
-        return res
-    
 
 @clock
 def eval_main(model, eval_dataloader, config:CustomConfig, logger:MyLogger):
@@ -87,7 +63,6 @@ def eval_main(model, eval_dataloader, config:CustomConfig, logger:MyLogger):
                 break
     pred = torch.cat(pred, dim=0).cpu()
     groundtruth = torch.cat(groundtruth, dim=0).cpu()
-    groundtruth = get_gt_by_config(groundtruth, config)
     # print(pred, groundtruth)
     
     if config.share_encoder:
@@ -96,35 +71,6 @@ def eval_main(model, eval_dataloader, config:CustomConfig, logger:MyLogger):
             eval_res.append(
                 eval_one_cls(pred[:,cls_p], groundtruth[:,cls_p], cls_list[cls_p])
             )
-        # cls_cnt = 3
-        # eval_res = [
-        #     [eval_fn(pred[:, p], groundtruth[:, p]) for eval_fn in eval_fn_list]
-        #     for p in range(cls_cnt) 
-        # ]
-        # eval_res = np.array(eval_res)
-        
-        # def show_res_multi():
-        #     lines = [
-        #         ' '.join(['  ']+[eval_fn.__name__[7:]for eval_fn in eval_fn_list]),
-        #     ]
-        #     for p, cls_name in enumerate(cls_list):
-        #         cur_line = [cls_name]
-        #         cur_line.extend(
-        #             list(map(lambda x:f'{x:6.4f}' , eval_res[p]))
-        #         )
-        #         lines.append(' '.join(cur_line))
-        #     logger.info(*lines, sep='\n')
-
-        #     for p, cls_name in enumerate(cls_list):
-        #         confusion_matrix = binary_confusion_matrix(pred[:, p], groundtruth[:, p])
-        #         lines = [
-        #             f'{cls_name:4s} pred_0 pred_1',
-        #             f'gt_0 {confusion_matrix[0][0]:5d} {confusion_matrix[0][1]:5d}',
-        #             f'gt_1 {confusion_matrix[1][0]:5d} {confusion_matrix[1][1]:5d}',
-        #         ]
-        #         logger.info(*lines, sep='\n')
-        
-        # show_res_multi()
     else:
         eval_res = [eval_one_cls(pred, groundtruth, config.cls_target)]
 
@@ -163,15 +109,15 @@ def train_main(config: CustomConfig):
         train_data, dev_data = train_test_split(train_data, train_size=0.8, shuffle=True)
     else:
         dev_data = preprocess_train_data(config.dev_data_file)
-    if config.downsample_data:
-        train_data = downsample_data(train_data, config.downsample_ratio)
-        
-    logger.info(get_data_info(train_data, 'train'))
-    logger.info(get_data_info(dev_data, 'dev'))
-    
     train_data = CustomDataset(train_data, config)
-    train_data = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
     dev_data = CustomDataset(dev_data, config)
+    if config.downsample_data:
+        train_data.downsample(config.positive_ratio)
+        
+    logger.info(train_data.get_data_info('train'))
+    logger.info(dev_data.get_data_info('dev'))
+    
+    train_data = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
     dev_data = DataLoader(dev_data, batch_size=config.batch_size, shuffle=False)
     
     model = BaselineModel(config)
@@ -189,15 +135,9 @@ def train_main(config: CustomConfig):
         tot_loss = AverageMeter()
         epoch_start_time = time.time()
         for p, (x, y) in enumerate(train_data):
-            y = y.to(device)  # bsz, cls
+            y = y.to(device)  # bsz, cls or bsz
             output = model(x)  # bsz, cls, 2 or bsz, 2
-            if config.share_encoder:
-                output = output.view(-1,2)  # bsz, cls, 2 -> bsz*cls, 2
-                y = y.view(-1)  # bsz, cls -> bsz*cls
-            else:
-                output  # bsz, 2
-                y = get_gt_by_config(y, config)  # bsz, cls -> bsz
-            loss = criterion(output, y)  # (output)bsz*cls,2 (y)bsz*cls or (output)bsz,2 (y)bsz
+            loss = criterion(output.view(-1,2), y.view(-1))  
             loss.backward()
             tot_loss += loss
             optimizer.step()
@@ -214,7 +154,7 @@ def train_main(config: CustomConfig):
                 epoch_end_time = datetime.datetime.now(datetime.timezone(offset=datetime.timedelta(hours=8))) + epoch_remain_time
                 logger.info(
                     f'batch[{p}/{len(train_data)}]',
-                    f'time[run:{epoch_running_time}/remain:{epoch_remain_time}/end:{epoch_end_time.strftime("%Y-%m-%d_%H:%M:%S")}]',
+                    f'time[run:{epoch_running_time} / remain:{epoch_remain_time} / end:{epoch_end_time.strftime("%Y-%m-%d_%H:%M:%S")}]',
                     f'loss: {tot_loss.average:.6f}',
                     sep=', '
                 )
@@ -255,12 +195,12 @@ if __name__ == '__main__':
         config = CustomConfig()
         config.model_name = 'bert-base-uncased'
         config.device = 'cuda'
-        config.cuda_id = '7'
+        config.cuda_id = '2'
 
         # config.just_test = True
         config.freeze_encoder = False
         config.downsample_data = True
-        config.downsample_ratio = 0.1
+        config.positive_ratio = 0.5
         config.share_encoder = False
         config.cls_target = 'hd+cv+vo'
         
@@ -271,12 +211,34 @@ if __name__ == '__main__':
         config.batch_size = 8
         config.lr = 5e-5
         
-        config.version = 'bertBase-hd+cv+vo'
+        config.version = 'bertBase'
+        if config.share_encoder:
+            config.version += '-shareEncoder'
+        else:
+            config.version += '-'+config.cls_target
         config.train_data_file = train_data_file_list[0]
         config.dev_data_file = ''
         return config
+        
+    # train_main(get_config_base_test())
     
-    train_main(get_config_base_test())
+    # new_config = get_config_base_test()
+    # new_config.share_encoder = True
+    # new_config.version = 'bertBase-shareEncoder'
+    # train_main(new_config)
+    
+    new_config = get_config_base_test()
+    new_config.share_encoder = False
+    new_config.cls_target = 'hd'
+    new_config.version = 'bertBase-'+new_config.cls_target
+    train_main(new_config)
+    new_config.cls_target = 'cv'
+    new_config.version = 'bertBase-'+new_config.cls_target
+    # new_config.version = 'bertBase-hd'
+    train_main(new_config)
+    new_config.cls_target = 'vo'
+    new_config.version = 'bertBase-'+new_config.cls_target
+    train_main(new_config)
     
     pass
 

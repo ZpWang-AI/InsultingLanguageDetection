@@ -16,7 +16,7 @@ class CustomConfig:
     base = True
     freeze_encoder = True
     downsample_data = True
-    downsample_ratio = 0.1
+    positive_ratio = 0.1
     share_encoder = False
     cls_target = 'hd'  # hd cv vo hd+vo hd+cv+vo..
     clip = False

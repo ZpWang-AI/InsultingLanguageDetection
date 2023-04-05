@@ -22,6 +22,8 @@ test_data_file_list = [
     './data/ghc_test.tsv'
 ]
 
+cls_list = ['hd', 'cv', 'vo']
+
 
 def read_csv(file_path):
     with open(file_path, 'r', encoding='utf-8') as csvfile:
@@ -57,51 +59,72 @@ def get_data_info(data, info=''):
         len(data),
     ]))
 
-def downsample_data(train_data, ratio=0.1):
-    downsampled_data = []
-    for piece in train_data:
-        if np.sum(piece[1:]) != 0 or np.random.rand() < ratio:
-            downsampled_data.append(piece)
-    return np.stack(downsampled_data, axis=0)
-
 
 class CustomDataset(Dataset):
-    def __init__(self, data, config) -> None:
+    def __init__(self, data:np.ndarray, config:CustomConfig) -> None:
         super().__init__()
-        self.data = data
         self.config = config
+        
+        if config.share_encoder:
+            self.data = []
+            for sentence, label1, label2, label3 in data:
+                self.data.append([sentence, list(map(int, [label1,label2,label3]))])    
+        else:
+            sentences = data[:,0]
+            label = np.zeros(data.shape[0], dtype=int)
+            for p_cls in range(3):
+                if cls_list[p_cls] in config.cls_target:
+                    label |= np.int64(data[:,p_cls+1])
+            self.data = list(zip(sentences, label))
+    
+    def is_positive(self, piece):
+        if self.config.share_encoder:
+            return bool(sum(piece[1]))
+        else:
+            return bool(piece[1])
+    
+    def downsample(self, positive_ratio):
+        positive_cnt = sum(self.is_positive(p)for p in self.data)
+        negative_cnt = int(positive_cnt/positive_ratio*(1-positive_ratio))
+        
+        np.random.shuffle(self.data)
+        new_data = []
+        for p in self.data:
+            if self.is_positive(p):
+                new_data.append(p)
+            else:
+                if negative_cnt:
+                    new_data.append(p)
+                    negative_cnt -= 1
+        self.data = new_data
+        np.random.shuffle(self.data)
+        pass
+    
+    def get_data_info(self, info=''):
+        if self.config.share_encoder:
+            positive_cnts = [0,0,0]
+            for _, (l1, l2, l3) in self.data:
+                positive_cnts[0] += l1
+                positive_cnts[1] += l2
+                positive_cnts[2] += l3
+            return f'{info:5s} data info: positive{positive_cnts}, total[{len(self.data)}]'
+        else:
+            positive_cnt = sum(self.is_positive(p)for p in self.data)
+            return f'{info:5s} data info: positive[{positive_cnt}], total[{len(self.data)}]'
     
     def __len__(self):
         return len(self.data)
     
-    def deal_sentence(self, sentence:str):
-        return str(sentence)
-        sentence = sentence.strip().split()
-        ans_sentence = []
-        for word in sentence:
-            if word[0] != '@':
-                ans_sentence.append(word)      
-        return ' '.join(ans_sentence)
-    
     def __getitem__(self, index):
-        sentence, label1, label2, label3 = self.data[index]
-        x = self.deal_sentence(sentence)
-        y = torch.tensor(list(map(int, (label1, label2, label3))))
-        return x, y
+        x, y = self.data[index]
+        return str(x), torch.tensor(y)
         
 
 if __name__ == '__main__':
 
     sample_train_data = preprocess_train_data(train_data_file_list[0])
     sample_test_data = preprocess_test_data(test_data_file_list[0])
-    
-    print(get_data_info(sample_train_data, 'init'))
-    print(sample_train_data.shape)
-    sample_downsampled_train_data = downsample_data(sample_train_data)
-    print(sample_downsampled_train_data.shape)
-    print(get_data_info(sample_downsampled_train_data, 'downsampled'))
-    exit()
-    
+
     # print(sample_train_data[:3])
     # print(sample_test_data[:3])
     # exit()
@@ -110,10 +133,19 @@ if __name__ == '__main__':
     #     print(line)
 
     sample_config = CustomConfig()
+    sample_config.share_encoder = False
+    sample_config.cls_target = 'hd+cv'
+    sample_config.positive_ratio = 0.2
+    
     sample_train_data = CustomDataset(sample_train_data, sample_config)
+    print(sample_train_data.get_data_info('init'))
+    sample_train_data.downsample(sample_config.positive_ratio)
+    print(sample_train_data.get_data_info('down'))
+    
     sample_train_data = DataLoader(sample_train_data, batch_size=5, shuffle=False)
-    for sample_input in sample_train_data:
-        print(sample_input)
+    for sample_x, sample_y in sample_train_data:
+        print(sample_x)
+        print(sample_y)
         print()
         break
     # exit()
@@ -125,7 +157,7 @@ if __name__ == '__main__':
         sample_output = sample_model(sample_x)
         print(sample_output.shape)
         print(sample_y.shape)
-        loss = sample_criterion(sample_output.view(-1, 2), sample_y.to(torch.long).view(-1))
+        loss = sample_criterion(sample_output.view(-1, 2), sample_y.view(-1))
         print(loss)
         loss.backward()
         break
