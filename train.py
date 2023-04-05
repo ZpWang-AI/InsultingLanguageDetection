@@ -33,21 +33,23 @@ from model.baseline import BaselineModel
 
 
 cls_list = ['hd', 'cv', 'vo']
+
 def get_gt_by_config(gt, config:CustomConfig):
     # gt: bsz, cls(3)
     # config.share_encoder: True/False
     # config.cls_target_list: hd, cv, vo, hd+vo, hd+cv+vo
+    # return: bsz, cls or bsz
     if config.share_encoder:
         return gt
     else:
-        res = torch.zeros_like(gt, dtype=gt.dtype)
+        res = torch.zeros(gt.shape[0], dtype=gt.dtype)
         for cls_target in config.cls_target.split('+'):
             res |= gt[:,cls_list.index(cls_target)]
         return res
     
 
 @clock
-def eval_main(model, eval_dataloader, config:CustomConfig, logger):
+def eval_main(model, eval_dataloader, config:CustomConfig, logger:MyLogger):
     model.eval()
     pred, groundtruth = [], []
     with torch.no_grad():
@@ -62,14 +64,15 @@ def eval_main(model, eval_dataloader, config:CustomConfig, logger):
     groundtruth = get_gt_by_config(groundtruth, config)
     # print(pred, groundtruth)
     
+    eval_fn_list = [
+        binary_f1_score, 
+        binary_precision,
+        binary_recall,
+        binary_accuracy,
+    ]
+    
     if config.share_encoder:
         cls_cnt = 3
-        eval_fn_list = [
-            binary_f1_score, 
-            binary_precision,
-            binary_recall,
-            binary_accuracy,
-        ]
         eval_res = [
             [eval_fn(pred[:, p], groundtruth[:, p]) for eval_fn in eval_fn_list]
             for p in range(cls_cnt) 
@@ -163,8 +166,14 @@ def train_main(config: CustomConfig):
         epoch_start_time = time.time()
         for p, (x, y) in enumerate(train_data):
             y = y.to(device)  # bsz, cls
-            output = model(x)  # bsz, cls, 2
-            loss = criterion(output.view(-1, 2), y.view(-1))  # (output)bsz*cls, 2  (y)bsz*cls
+            output = model(x)  # bsz, cls, 2 or bsz, 2
+            if config.share_encoder:
+                output = output.view(-1,2)  # bsz, cls, 2 -> bsz*cls, 2
+                y = y.view(-1)  # bsz, cls -> bsz*cls
+            else:
+                output  # bsz, 2
+                y = get_gt_by_config(y, config)  # bsz, cls -> bsz
+            loss = criterion(output, y)  # (output)bsz*cls,2 (y)bsz*cls or (output)bsz,2 (y)bsz
             loss.backward()
             tot_loss += loss
             optimizer.step()
@@ -186,9 +195,9 @@ def train_main(config: CustomConfig):
                     sep=', '
                 )
 
-        logger.info('evaluate train')
+        logger.info('\n> evaluate train <')
         eval_main(model, train_data, config, logger)
-        logger.info('evaluate dev')
+        logger.info('\n> evaluate dev <')
         eval_res = eval_main(model, dev_data, config, logger)
         average_f1 = np.average(eval_res[:, 0])
         
@@ -243,6 +252,7 @@ if __name__ == '__main__':
         config.dev_data_file = ''
         return config
     
-    # def get_ /'
-        
     train_main(get_config_base_test())
+    
+    pass
+
