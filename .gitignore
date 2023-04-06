@@ -6,9 +6,8 @@ data/*
 saved_res/*/*
 
 
-saved_model/*
-
-
+saved_model
+flagged
 test*
 *.sh
 *.zip

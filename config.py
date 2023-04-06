@@ -1,7 +1,7 @@
 class CustomConfig:
-    version = 'base'
+    version = 'bertBase'
     
-    model_name = 'xlm-roberta-base'
+    model_name = 'bert-base-uncased'
     device = 'cpu'
     cuda_id = '0'
     
@@ -14,9 +14,9 @@ class CustomConfig:
     test_model_path = ''
     
     base = True
-    freeze_encoder = True
+    freeze_encoder = False
     downsample_data = True
-    positive_ratio = 0.1
+    positive_ratio = 0.5
     share_encoder = False
     cls_target = 'hd'  # hd cv vo hd+vo hd+cv+vo..
     clip = False

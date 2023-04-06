@@ -23,6 +23,9 @@ test_data_file_list = [
 ]
 
 cls_list = ['hd', 'cv', 'vo']
+# hd: Assault on Human Dignity
+# cv: Call for Violence
+# vo: 
 
 
 def read_csv(file_path):

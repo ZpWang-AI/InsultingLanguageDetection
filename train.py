@@ -191,6 +191,17 @@ def train_main(config: CustomConfig):
 
 
 if __name__ == '__main__':
+    def process_version_decorator(func):
+        def new_func(*args, **kwargs):
+            config = func(*args, **kwargs)
+            
+            if config.share_encoder:
+                config.version += '-shareEncoder'
+            else:
+                config.version += '-'+config.cls_target
+            return config
+        return new_func
+    
     def get_config_base_test():
         config = CustomConfig()
         config.model_name = 'bert-base-uncased'
@@ -212,33 +223,39 @@ if __name__ == '__main__':
         config.lr = 5e-5
         
         config.version = 'bertBase'
-        if config.share_encoder:
-            config.version += '-shareEncoder'
-        else:
-            config.version += '-'+config.cls_target
         config.train_data_file = train_data_file_list[0]
         config.dev_data_file = ''
         return config
-        
+    
+    @process_version_decorator
+    def config_mixed_three_cls():
+        config = get_config_base_test()
+        config.positive_ratio = 0.4
+        config.share_encoder = False
+        config.cls_target = 'hd+cv+vo'
+        return config
+    
+    @process_version_decorator
+    def config_share_encoder():
+        config = get_config_base_test()
+        config.positive_ratio = 2/3
+        config.share_encoder = True
+        return config
+    
+    @process_version_decorator
+    def config_single_cls(cls):
+        config = get_config_base_test()
+        config.positive_ratio = 0.4
+        config.share_encoder = False
+        config.cls_target = cls
+        return config
+    
+    train_main(config_mixed_three_cls())
+    train_main(config_share_encoder())
+    for cls_ in cls_list:
+        train_main(config_single_cls(cls_))
     # train_main(get_config_base_test())
-    
-    # new_config = get_config_base_test()
-    # new_config.share_encoder = True
-    # new_config.version = 'bertBase-shareEncoder'
-    # train_main(new_config)
-    
-    new_config = get_config_base_test()
-    new_config.share_encoder = False
-    new_config.cls_target = 'hd'
-    new_config.version = 'bertBase-'+new_config.cls_target
-    train_main(new_config)
-    new_config.cls_target = 'cv'
-    new_config.version = 'bertBase-'+new_config.cls_target
-    # new_config.version = 'bertBase-hd'
-    train_main(new_config)
-    new_config.cls_target = 'vo'
-    new_config.version = 'bertBase-'+new_config.cls_target
-    train_main(new_config)
+
     
     pass
 
