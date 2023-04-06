@@ -23,9 +23,9 @@ test_data_file_list = [
 ]
 
 cls_list = ['hd', 'cv', 'vo']
-# hd: Assault on Human Dignity
-# cv: Call for Violence
-# vo: 
+# hd: Assaults on Human Dignity 侵犯人类尊严
+# cv: Call for Violence 呼吁暴力
+# vo: Vulgarity/Ofensive Language directed at an individual 针对个人的粗俗/冒犯性语言
 
 
 def read_csv(file_path):
