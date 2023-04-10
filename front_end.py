@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import gradio as gr
@@ -8,8 +9,10 @@ from model.baseline import BaselineModel
 
 def main():
     config = CustomConfig()
-    config.device = 'cpu'
+    config.device = 'cuda'
+    config.cuda_id = '4'
     config.share_encoder = False
+    os.environ['CUDA_VISIBLE_DEVICES'] = config.cuda_id
     
     model = BaselineModel(config)
     model_file_mixed = './saved_res/2023-04-05_21_59_16_bertBase-hd+cv+vo/saved_model/2023-04-05_21_59_16_epoch1_518.pth'
