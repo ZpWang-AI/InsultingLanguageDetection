@@ -4,6 +4,7 @@ import warnings
 import torch
 import torch.nn as nn
 import numpy as np
+# import fitlog
 
 from tqdm import tqdm
 from pathlib import Path as path
@@ -191,7 +192,7 @@ def train_main(config: CustomConfig):
 
 
 if __name__ == '__main__':
-    def process_version_decorator(func):
+    def process_config_decorator(func):
         def new_func(*args, **kwargs):
             config = func(*args, **kwargs)
             
@@ -205,6 +206,7 @@ if __name__ == '__main__':
     def get_config_base_test():
         config = CustomConfig()
         config.model_name = 'bert-base-uncased'
+        # config.model_name = 'roberta-base'
         config.device = 'cuda'
         config.cuda_id = '2'
 
@@ -227,7 +229,7 @@ if __name__ == '__main__':
         config.dev_data_file = ''
         return config
     
-    @process_version_decorator
+    @process_config_decorator
     def config_mixed_three_cls():
         config = get_config_base_test()
         config.positive_ratio = 0.4
@@ -235,14 +237,14 @@ if __name__ == '__main__':
         config.cls_target = 'hd+cv+vo'
         return config
     
-    @process_version_decorator
+    @process_config_decorator
     def config_share_encoder():
         config = get_config_base_test()
         config.positive_ratio = 2/3
         config.share_encoder = True
         return config
     
-    @process_version_decorator
+    @process_config_decorator
     def config_single_cls(cls):
         config = get_config_base_test()
         config.positive_ratio = 0.4
