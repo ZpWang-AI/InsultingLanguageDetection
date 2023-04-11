@@ -6,6 +6,7 @@ data/*
 saved_res/*/*
 
 
+pretrained_model
 saved_model
 flagged
 test*
