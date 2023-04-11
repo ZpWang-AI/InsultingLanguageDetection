@@ -106,10 +106,7 @@ class LightningModel(lightning.LightningModule):
         
         self.metric_name_list = ['accuracy', 'precision', 'recall', 'f1']
         if self.share_encoder:
-            self.train_metric_list = nn.ModuleList(
-                
-            )
-            [
+            self.train_metric_list = [
                 [
                     torchmetrics.Accuracy('binary'),
                     torchmetrics.Precision('binary'),
@@ -155,6 +152,16 @@ class LightningModel(lightning.LightningModule):
                 torchmetrics.Recall('binary'),
                 torchmetrics.F1Score('binary')
             ]
+            
+        def recurive_module(lst):
+            print(lst)
+            return nn.Module(recurive_module(p)if type(p) == list else p for p in lst)
+        
+        all_metric_list = [getattr(self, f'{stage}_metric_list')for stage in 'train val test'.split()]
+        for metric_list in all_metric_list:
+            metric_list = recurive_module(metric_list)
+        all_metric_list = [getattr(self, f'{stage}_metric_list')for stage in 'train val test'.split()]
+        print(all_metric_list)
         
     def forward(self, *args, **kwargs):
         return self.model(*args, **kwargs)

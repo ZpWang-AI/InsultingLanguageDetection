@@ -4,6 +4,7 @@ import time
 import os
 import sys
 import threading 
+import torch
 
 from typing import *
 from pathlib import Path as path
@@ -47,28 +48,6 @@ def async_run(func=None):
         return new_func
     else:
         return async_run
-    
-    
-def get_all_files(root_fold:Union[path, str], recursion:bool=False):
-    root_fold = path(root_fold)
-    son_files = []
-    for nxt in os.listdir(root_fold):
-        nxt = root_fold/nxt
-        if nxt.is_dir():
-            if recursion:
-                son_files.extend(get_all_files(nxt, True))
-        else:
-            son_files.append(nxt)
-    return son_files
-
-
-def try_remove(root_fold:Union[path, str], recursion:bool=False):
-    import shutil
-    root_fold = path(root_fold)
-    if not root_fold.exists():
-        return
-    else:
-        shutil.rmtree(root_fold)
 
 
 def get_cur_time(time_zone_hours=8):
@@ -137,6 +116,43 @@ class AverageMeter:
         self.add(val)
         return self
         
+        
+def query_gpu_memory(cuda_id=0, show=True, to_mb=True):
+    def norm_mem(mem):
+        if to_mb:
+            return f'{mem/(1024**2):.0f}MB'
+        unit_lst = ['B', 'KB', 'MB', 'GB', 'TB']
+        for unit in unit_lst:
+            if mem < 1024:
+                return f'{mem:.2f}{unit}'
+            mem /= 1024
+        return f'{mem:.2f}TB'
+    
+    free, total = torch.cuda.mem_get_info(cuda_id)
+    used = total-free
+    if show:
+        print(f'free: {norm_mem(free)}, used: {norm_mem(used)}, total: {norm_mem(total)}')
+    return free, used, total
+
+def get_free_gpu(force=True, device_range=None):
+    if not device_range:
+        device_range = list(range(torch.cuda.device_count()))
+    if force:
+        max_free = -1
+        free_device = -1
+        for cuda_id in device_range:
+            cur_free = query_gpu_memory(cuda_id, show=False)[0]
+            if cur_free > max_free:
+                max_free = cur_free
+                free_device = cuda_id
+        if force:
+            return free_device
+        else:
+            if max_free < 10240:
+                return free_device
+            else:
+                raise 'No free device'
+            
     
 if __name__ == '__main__':
     # for d in get_all_files('.'):
@@ -144,9 +160,12 @@ if __name__ == '__main__':
     #     print(d)
     # print(get_cur_time().replace(':', '-'))
     
-    test_logger = MyLogger(log_with_time=False, just_print=False)
-    for root, dirs, files in os.walk('./'):
-        test_logger.info(root, dirs, files)
+    # test_logger = MyLogger(log_with_time=False, just_print=False)
+    # for root, dirs, files in os.walk('./'):
+    #     test_logger.info(root, dirs, files)
+    
+    query_gpu_memory()
+    print(get_free_gpu())
     
     # a = AverageMeter()
     # a += 10
