@@ -153,15 +153,14 @@ class LightningModel(lightning.LightningModule):
                 torchmetrics.F1Score('binary')
             ]
             
-        def recurive_module(lst):
+        def recursive_moduleList(lst): 
             print(lst)
-            return nn.Module(recurive_module(p)if type(p) == list else p for p in lst)
+            lst = [recursive_moduleList(p) if type(p) == list else p for p in lst]
+            return nn.ModuleList(lst)
         
-        all_metric_list = [getattr(self, f'{stage}_metric_list')for stage in 'train val test'.split()]
-        for metric_list in all_metric_list:
-            metric_list = recurive_module(metric_list)
-        all_metric_list = [getattr(self, f'{stage}_metric_list')for stage in 'train val test'.split()]
-        print(all_metric_list)
+        self.train_metric_list = recursive_moduleList(self.train_metric_list)
+        self.val_metric_list = recursive_moduleList(self.val_metric_list)
+        self.test_metric_list = recursive_moduleList(self.test_metric_list)
         
     def forward(self, *args, **kwargs):
         return self.model(*args, **kwargs)
@@ -184,12 +183,12 @@ class LightningModel(lightning.LightningModule):
                         self.log(f'{stage}_{metric_name}_{p}', metric, on_epoch=True, on_step=False)
                     macro_f1 += metric_list[p][-1].compute()
                 macro_f1 /= 3
-                self.log(f'{stage}_macro-f1', macro_f1, on_epoch=True, on_step=False)
+                self.log(f'{stage}_macro_f1', macro_f1, on_epoch=True, on_step=False)
             else:
                 for metric_name, metric in zip(self.metric_name_list, metric_list):
                     metric(preds, ys)
                     self.log(f'{stage}_{metric_name}', metric, on_epoch=True, on_step=False)
-                self.log(f'{stage}_macro-f1', metric_list[-1].compute(), on_epoch=True, on_step=False)
+                self.log(f'{stage}_macro_f1', metric_list[-1].compute(), on_epoch=True, on_step=False)
         return loss
     
     def training_step(self, batch, batch_idx):
@@ -222,7 +221,7 @@ if __name__ == '__main__':
             return len(self.data)
         
         def __getitem__(self, index):
-            return self.data[index], 0
+            return self.data[index], index%2
         
         def collate_fn(self, batch_init):
             xs, ys = zip(*batch_init)
@@ -239,7 +238,7 @@ if __name__ == '__main__':
     start_time = time.time()
     cur_time = time.time()
     sample_data = SampleDataset(sample_model_name, sample_pretrained_model_fold)
-    sample_data = DataLoader(sample_data, batch_size=3, collate_fn=sample_data.collate_fn)
+    sample_data = DataLoader(sample_data, batch_size=5, collate_fn=sample_data.collate_fn)
     print(f'prepare data cost {time.time()-cur_time:.2f}s')
     
     cur_time = time.time()
@@ -282,9 +281,9 @@ if __name__ == '__main__':
     )
     sample_callbacks = [ModelCheckpoint(
         dirpath='logs/sample_ckpt/',
-        filename='{epoch}-{val_macro-f1:.2f}',
-        monitor='val_macro-f1',
-        save_top_k=3,
+        # filename='{epoch}-{val_macro_f1:.2f}',
+        monitor='val_macro_f1',
+        save_top_k=1,
         mode='max',
     )]
     sample_logger = CSVLogger(save_dir='logs', name='sample-log')
@@ -305,8 +304,15 @@ if __name__ == '__main__':
         model=sample_lightning_model,
         train_dataloaders=sample_data,
         val_dataloaders=sample_data,
+        
     )
-    sample_trainer.test(sample_lightning_model, sample_data, ckpt_path='best')
+    # sample_ckpt = torch.load('./logs/sample_ckpt/epoch=0-step=8-v1.ckpt')
+    # sample_lightning_model.load_state_dict(sample_ckpt['state_dict'])
+    sample_trainer.test(
+        model=sample_lightning_model,
+        dataloaders=sample_data,
+        # ckpt_path='best'
+    )
     
     
 

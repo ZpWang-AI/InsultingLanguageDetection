@@ -6,6 +6,8 @@ data/*
 saved_res/*/*
 
 
+logs
+
 pretrained_model
 saved_model
 flagged
