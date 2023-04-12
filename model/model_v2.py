@@ -379,7 +379,7 @@ if __name__ == '__main__':
         sample_trainer.test(
             model=sample_model,
             dataloaders=sample_data,
-            # ckpt_path='best'
+            ckpt_path='best'
         )
     
     def sample_load_ckpt():

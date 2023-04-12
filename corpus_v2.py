@@ -121,7 +121,8 @@ class Datasetv2(Dataset):
         xs, ys = zip(*batch_data)
         self.tokenizer: AutoTokenizer
         xs = self.tokenizer(xs, padding=True, truncation=True, return_tensors='pt')
-        ys = torch.stack(ys, dim=0)
+        if self.share_encoder:
+            ys = torch.stack(ys, dim=1)
         return xs, ys
         
 
@@ -147,7 +148,7 @@ if __name__ == '__main__':
     sample_train_data.downsample(sample_positive_ratio)
     print(sample_train_data.get_data_info('down'))
     
-    sample_train_data = DataLoader(sample_train_data, batch_size=3, collate_fn=sample_train_data.collate_fn)
+    sample_train_data = DataLoader(sample_train_data, batch_size=5, collate_fn=sample_train_data.collate_fn)
     # for sample_x, sample_y in sample_train_data:
     #     print(sample_x)
     #     print(sample_y)

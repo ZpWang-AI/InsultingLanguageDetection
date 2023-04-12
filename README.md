@@ -9,6 +9,7 @@ Suda Graduation Project. About detecting insulting language.
 | model
     | model_v2.py
 | train_v2.py
+| analyse.py
 | front_end.py
 ~~~
 <!-- ### Train
