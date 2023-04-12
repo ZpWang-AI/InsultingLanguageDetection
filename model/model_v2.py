@@ -256,7 +256,7 @@ class Modelv2(lightning.LightningModule):
 
 if __name__ == '__main__':
     class SampleDataset(Dataset):
-        def __init__(self, model_name, pretrained_model_fold='./pretrained_model') -> None:
+        def __init__(self, model_name, pretrained_model_fold='./pretrained_model', share_encoder=False) -> None:
             super().__init__()
             self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=pretrained_model_fold)
             self.data = [
@@ -266,22 +266,28 @@ if __name__ == '__main__':
                 'four sample sentences '*3,
                 # '谢谢关注',
             ]*10
+            self.share_encoder = share_encoder
             
         def __len__(self):
             return len(self.data)
         
         def __getitem__(self, index):
-            return self.data[index], index%2
-        
+            if self.share_encoder:
+                return self.data[index], (index%2,)*3
+            else:
+                return self.data[index], index%2    
         def collate_fn(self, batch_data):
             xs, ys = zip(*batch_data)
             xs = self.tokenizer(xs, padding=True, truncation=True, return_tensors='pt')
             ys = torch.tensor(ys)
+            if self.share_encoder:
+                ys = ys.reshape((3,-1))
             return xs, ys
     
     sample_model_name = 'bert-base-uncased'
     # sample_model_name = 'distilBert-base'
     sample_pretrained_model_fold = './pretrained_model'
+    sample_share_encoder = True
     devices = [4]
     
     def sample_model_forward():
@@ -289,7 +295,7 @@ if __name__ == '__main__':
         
         start_time = time.time()
         cur_time = time.time()
-        sample_data = SampleDataset(sample_model_name, sample_pretrained_model_fold)
+        sample_data = SampleDataset(sample_model_name, sample_pretrained_model_fold, sample_share_encoder)
         sample_data = DataLoader(sample_data, batch_size=5, collate_fn=sample_data.collate_fn)
         print(f'prepare data cost {time.time()-cur_time:.2f}s')
         
@@ -297,7 +303,7 @@ if __name__ == '__main__':
         sample_model = Modelv2(
             sample_model_name, 
             sample_pretrained_model_fold, 
-            share_encoder=False
+            share_encoder=sample_share_encoder,
         )
         print(f'prepare model cost {time.time()-cur_time:.2f}s')
         
@@ -331,12 +337,12 @@ if __name__ == '__main__':
         print(f'total cost {time.time()-start_time:.2f}s')
     
     def sample_train_test():
-        sample_data = SampleDataset(sample_model_name, sample_pretrained_model_fold)
+        sample_data = SampleDataset(sample_model_name, sample_pretrained_model_fold, sample_share_encoder)
         sample_data = DataLoader(sample_data, batch_size=5, collate_fn=sample_data.collate_fn)
         sample_model = Modelv2(
             sample_model_name, 
             sample_pretrained_model_fold, 
-            share_encoder=False
+            share_encoder=sample_share_encoder,
         )
         sample_model.get_pretrained_encoder()
         
@@ -377,16 +383,16 @@ if __name__ == '__main__':
         )
     
     def sample_load_ckpt():
-        sample_data = SampleDataset(sample_model_name, sample_pretrained_model_fold)
+        sample_data = SampleDataset(sample_model_name, sample_pretrained_model_fold, sample_share_encoder)
         sample_data = DataLoader(sample_data, batch_size=5, collate_fn=sample_data.collate_fn)
         sample_model = Modelv2(
             sample_model_name, 
             sample_pretrained_model_fold, 
-            share_encoder=False
+            share_encoder=sample_share_encoder
         )
         
         sample_ckpt_file = './logs/sample_ckpt/epoch=0-val_macro_f1=1.00.ckpt'
-        sample_model: lightning.LightningModule
+        # sample_model: lightning.LightningModule
         sample_model.load_from_checkpoint(sample_ckpt_file)
         
         fab = Fabric(accelerator='cuda',devices=devices,precision='16')
@@ -408,10 +414,10 @@ if __name__ == '__main__':
             print(sample_output.shape)
             break
         
-    # sample_model_forward()
-    # print('-'*20)
-    # sample_train_test()
-    # print('-'*20)
+    sample_model_forward()
+    print('-'*20)
+    sample_train_test()
+    print('-'*20)
     sample_load_ckpt()
     print('-'*20)
     
