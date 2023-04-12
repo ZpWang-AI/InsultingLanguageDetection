@@ -5,6 +5,7 @@ import os
 import sys
 import threading 
 import torch
+import pynvml
 
 from typing import *
 from pathlib import Path as path
@@ -128,31 +129,31 @@ def query_gpu_memory(cuda_id=0, show=True, to_mb=True):
             mem /= 1024
         return f'{mem:.2f}TB'
     
-    free, total = torch.cuda.mem_get_info(cuda_id)
-    used = total-free
+    pynvml.nvmlInit()
+    handle = pynvml.nvmlDeviceGetHandleByIndex(cuda_id)
+    info = pynvml.nvmlDeviceGetMemoryInfo(handle)
     if show:
-        print(f'free: {norm_mem(free)}, used: {norm_mem(used)}, total: {norm_mem(total)}')
-    return free, used, total
+        print(f'free: {norm_mem(info.free)}, used: {norm_mem(info.used)}, total: {norm_mem(info.total)}')
+    return info.free, info.used, info.total
 
 def get_free_gpu(force=True, device_range=None):
     if not device_range:
         device_range = list(range(torch.cuda.device_count()))
+    max_free = -1
+    free_device = -1
+    for cuda_id in device_range:
+        cur_free = query_gpu_memory(cuda_id, show=False)[0]
+        if cur_free > max_free:
+            max_free = cur_free
+            free_device = cuda_id
     if force:
-        max_free = -1
-        free_device = -1
-        for cuda_id in device_range:
-            cur_free = query_gpu_memory(cuda_id, show=False)[0]
-            if cur_free > max_free:
-                max_free = cur_free
-                free_device = cuda_id
-        if force:
+        return free_device
+    else:
+        used_mem = query_gpu_memory(free_device, show=False)[1]
+        if used_mem < 500*1024**2:
             return free_device
         else:
-            used_mem = query_gpu_memory(free_device, show=False)[1]
-            if used_mem < 1000*1024**2:
-                return free_device
-            else:
-                raise 'No free device'
+            raise 'No free device'
             
     
 if __name__ == '__main__':
@@ -165,10 +166,10 @@ if __name__ == '__main__':
     # for root, dirs, files in os.walk('./'):
     #     test_logger.info(root, dirs, files)
     
-    target_cuda_id = get_free_gpu()
-    print(target_cuda_id)
-    query_gpu_memory(target_cuda_id)
-    
+    # target_cuda_id = get_free_gpu()
+    # print(target_cuda_id)
+    # query_gpu_memory(target_cuda_id)
+        
     # a = AverageMeter()
     # a += 10
     # print(a.val)

@@ -3,30 +3,37 @@ import torch
 import torch.nn as nn
 import gradio as gr
 
-from config import CustomConfig
-from model.baseline import BaselineModel
+from transformers import AutoTokenizer
+from lightning import Fabric
+from lightning.pytorch.utilities.deepspeed import get_fp32_state_dict_from_zero_checkpoint
+
+from utils import *
+from model.model_v2 import Modelv2
+from train_v2 import Configv2
 
 
 def main():
-    config = CustomConfig()
-    config.device = 'cuda'
-    config.cuda_id = '4'
-    config.share_encoder = False
-    os.environ['CUDA_VISIBLE_DEVICES'] = config.cuda_id
+    config = Configv2()
+    cuda_id = get_free_gpu()
+    device = torch.device(f'cuda:{cuda_id}')
     
-    model = BaselineModel(config)
-    model_file_mixed = './saved_res/2023-04-05_21_59_16_bertBase-hd+cv+vo/saved_model/2023-04-05_21_59_16_epoch1_518.pth'
-    model_file_shareEncoder = './saved_res/2023-04-05_22_12_45_bertBase-shareEncoder/saved_model/2023-04-05_22_12_45_epoch7_292.pth'
-    model_file_hd = './saved_res/2023-04-05_22_21_21_bertBase-hd/saved_model/2023-04-05_22_21_21_epoch3_446.pth'
-    model_file_cv = './saved_res/2023-04-05_22_31_22_bertBase-cv/saved_model/2023-04-05_22_31_22_epoch3_203.pth'
-    model_file_vo = './saved_res/2023-04-05_22_33_53_bertBase-vo/saved_model/2023-04-05_22_33_53_epoch8_469.pth'
-    model.load_state_dict(torch.load(model_file_mixed))
+    ckpt_file = './logs/2023-04-12_19-43-18/checkpoint/epoch5-f1score0.77.ckpt/'
+    model = Modelv2(
+        model_name=config.model_name,
+        share_encoder=config.share_encoder,
+    )
+    model.load_state_dict(get_fp32_state_dict_from_zero_checkpoint(ckpt_file), strict=False)
+    model.to(device)
     model.eval()
-    model.to(config.device)
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name, cache_dir=config.pretrained_model_fold)
     
     def interface_fn(sentence):
         with torch.no_grad():
-            res = model.predict([sentence])[0]
+            x_input = tokenizer([sentence], padding=True, truncation=True, return_tensors='pt')
+            x_input = x_input.to(device)
+            res = model.predict(x_input)[0]
+        res = res.cpu().numpy()
+        res = bool(res)
         # res = sentence+'hello'
         if res:
             return '存在谩骂类情感'

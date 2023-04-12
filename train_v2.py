@@ -102,7 +102,7 @@ def main(config: Configv2):
     log_path = path(config.log_fold)/path(get_cur_time().replace(':', '-'))
     
     callbacks = [ModelCheckpoint(
-        # dirpath=log_path/'ckpt',
+        dirpath=log_path/'checkpoint',
         filename='epoch{epoch}-f1score{val_macro_f1:.2f}',
         monitor='val_macro_f1',
         save_top_k=3,
@@ -126,7 +126,7 @@ def main(config: Configv2):
         limit_train_batches=limit,
         limit_val_batches=limit,
         limit_test_batches=limit,
-        default_root_dir=log_path,
+        # default_root_dir=log_path,
     )
     trainer.fit(
         model=model,
