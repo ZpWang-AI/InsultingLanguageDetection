@@ -102,11 +102,13 @@ def main(config: Configv2):
     log_path = path(config.log_fold)/path(get_cur_time().replace(':', '-'))
     
     callbacks = [ModelCheckpoint(
-        dirpath=log_path/'ckpt',
-        filename='{epoch}-{val_macro_f1:.2f}',
+        # dirpath=log_path/'ckpt',
+        filename='epoch{epoch}-f1score{val_macro_f1:.2f}',
         monitor='val_macro_f1',
         save_top_k=3,
         mode='max',
+        auto_insert_metric_name=False,
+        save_weights_only=True,
     )]
     logger = CSVLogger(save_dir=log_path, name='', version='')
     logger.log_hyperparams(config.as_dict())
@@ -124,6 +126,7 @@ def main(config: Configv2):
         limit_train_batches=limit,
         limit_val_batches=limit,
         limit_test_batches=limit,
+        default_root_dir=log_path,
     )
     trainer.fit(
         model=model,

@@ -123,6 +123,8 @@ class Datasetv2(Dataset):
         xs = self.tokenizer(xs, padding=True, truncation=True, return_tensors='pt')
         if self.share_encoder:
             ys = torch.stack(ys, dim=1)
+        else:
+            ys = torch.tensor(ys)
         return xs, ys
         
 
