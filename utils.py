@@ -148,7 +148,8 @@ def get_free_gpu(force=True, device_range=None):
         if force:
             return free_device
         else:
-            if max_free < 10240:
+            used_mem = query_gpu_memory(free_device, show=False)[1]
+            if used_mem < 1000*1024**2:
                 return free_device
             else:
                 raise 'No free device'
@@ -164,8 +165,9 @@ if __name__ == '__main__':
     # for root, dirs, files in os.walk('./'):
     #     test_logger.info(root, dirs, files)
     
-    query_gpu_memory()
-    print(get_free_gpu())
+    target_cuda_id = get_free_gpu()
+    print(target_cuda_id)
+    query_gpu_memory(target_cuda_id)
     
     # a = AverageMeter()
     # a += 10
