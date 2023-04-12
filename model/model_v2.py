@@ -100,6 +100,8 @@ class Modelv2(lightning.LightningModule):
                  model_name='bert-base-uncased',
                  pretrained_model_fold='./pretrained_model',
                  share_encoder=False,
+                 rdrop=True,
+                 early_dropout=True,
                  optimizer=torch.optim.AdamW, 
                  lr=5e-5,
                  criterion=nn.CrossEntropyLoss(),
@@ -109,6 +111,8 @@ class Modelv2(lightning.LightningModule):
         self.model_name = model_name
         self.pretrained_model_fold = pretrained_model_fold
         self.share_encoder = share_encoder
+        self.rdrop = rdrop
+        self.early_dropout = early_dropout
         
         self.model_config = AutoConfig.from_pretrained(model_name, 
                                                        num_labels=2, 

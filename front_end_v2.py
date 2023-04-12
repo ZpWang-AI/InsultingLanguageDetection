@@ -32,8 +32,7 @@ def main():
             x_input = tokenizer([sentence], padding=True, truncation=True, return_tensors='pt')
             x_input = x_input.to(device)
             res = model.predict(x_input)[0]
-        res = res.cpu().numpy()
-        res = bool(res)
+        res = bool(res.cpu().numpy())
         # res = sentence+'hello'
         if res:
             return '存在谩骂类情感'

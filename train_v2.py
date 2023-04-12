@@ -128,11 +128,16 @@ def main(config: Configv2):
         limit_test_batches=limit,
         # default_root_dir=log_path,
     )
+    
+    start_time = time.time()
     trainer.fit(
         model=model,
         train_dataloaders=train_data,
         val_dataloaders=val_data,
     )
+    running_time = time.time()-start_time
+    logger.log_metrics('running time', running_time)
+    
     trainer.test(
         model=model,
         dataloaders=test_data,
@@ -141,23 +146,61 @@ def main(config: Configv2):
 
 
 if __name__ == '__main__':
-    config = Configv2()
-    config.just_test = True
-    config.share_encoder = True
-    main(config)
-    config.share_encoder = False
-    main(config)
-    exit()
-    
-    config = Configv2()
-    config.share_encoder = True
-    config.positive_ratio = 2/3
-    main(config)
-    
-    for cls_target in ['hd', 'cv', 'vo', 'hd+vo', 'hd+cv+vo']:
-        config = Configv2()
-        config.share_encoder = False
-        config.cls_target = cls_target
-        config.positive_ratio = 0.4
+    def just_test_main():
+        config = Configv2() 
+        config.just_test = True
+        config.share_encoder = True
         main(config)
+        config.share_encoder = False
+        main(config)
+        exit()
+    
+    def baseline():
+        config = Configv2()
+        config.version = 'baseline'
+        main(config)
+    
+    def model_encoder_cmp():
+        model_name_lst = ['bert-base-uncased', 'distilbert-base-uncased', 'roberta-base', 'xlm-roberta-base']
+        config = Configv2()
+        config.version = 'encoder of model cmp'
+        for model_name in model_name_lst:
+            config.model_name = model_name
+            main(config)
+    
+    def running_time_cmp():
+        config = Configv2()
+        config.version = 'running time cmp'
+        for p in range(4):
+            config.amp = p % 2
+            config.deepspeed = p // 2 % 2
+            main(config)
+    
+    def downsample_cmp():
+        config = Configv2()
+        config.version = 'downsample cmp'
+        config.downsample_data = False
+        main(config)
+        config.downsample_data = True
+        for rate in range(1, 11):
+            config.positive_ratio = rate/10
+            main(config)
+    
+    def freeze_encoder():
+        config = Configv2()
+        config.version = 'freeze encoder'
+        main(config)
+    
+    def structure_cmp():
+        config = Configv2()
+        config.version = 'structure cmp'
+        config.share_encoder = True
+        config.positive_ratio = 2/3
+        main(config)
+        config.share_encoder = False
+        config.positive_ratio = 0.4
+        for cls_tar in ['hd', 'cv', 'vo', 'hd+cv+vo']:
+            config.cls_target = cls_tar
+            main(config)
+    
     
