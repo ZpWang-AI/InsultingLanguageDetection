@@ -70,7 +70,7 @@ class Datasetv2(Dataset):
         self.x_list = data[:,0]
         
         if share_encoder:
-            self.y_list = data[:,1:]
+            self.y_list = np.int64(data[:,1:])
         else:
             self.y_list = np.zeros(data.shape[0], dtype=int)
             for p_cls in range(3):
@@ -112,14 +112,15 @@ class Datasetv2(Dataset):
             return f'{info:5s} data info: positive[{positive_cnt}], total[{len(self.x_list)}]'
     
     def __len__(self):
-        return len(self.data)
+        return len(self.x_list)
     
     def __getitem__(self, index):
         return str(self.x_list[index]), torch.tensor(self.y_list[index])
     
     def collate_fn(self, batch_data):
         xs, ys = zip(*batch_data)
-        xs = self.tokenizer(xs, padding=True, truction=True, return_tensors='pt')
+        self.tokenizer: AutoTokenizer
+        xs = self.tokenizer(xs, padding=True, truncation=True, return_tensors='pt')
         ys = torch.stack(ys, dim=0)
         return xs, ys
         
@@ -136,7 +137,7 @@ if __name__ == '__main__':
     # for line in sample_train_data[1:3]:
     #     print(line)
 
-    sample_share_encoder = False
+    sample_share_encoder = True
     sample_cls_target = 'hd+cv'
     sample_positive_ratio = 0.2
     sample_tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased', cache_dir='./pretrained_model/')
@@ -146,25 +147,23 @@ if __name__ == '__main__':
     sample_train_data.downsample(sample_positive_ratio)
     print(sample_train_data.get_data_info('down'))
     
-    sample_train_data = DataLoader(sample_train_data, batch_size=5, collate_fn=sample_train_data.collate_fn)
-    for sample_x, sample_y in sample_train_data:
-        print(sample_x)
-        print(sample_y)
-        print()
-        break
+    sample_train_data = DataLoader(sample_train_data, batch_size=3, collate_fn=sample_train_data.collate_fn)
+    # for sample_x, sample_y in sample_train_data:
+    #     print(sample_x)
+    #     print(sample_y)
+    #     print()
+    #     break
     # exit()
     
-    # from model.baseline import BaselineModel
-    # sample_model = BaselineModel(sample_config)
-    # sample_criterion = nn.CrossEntropyLoss(reduction='sum')
-    # for sample_x, sample_y in sample_train_data:
-    #     sample_output = sample_model(sample_x)
-    #     print(sample_output.shape)
-    #     print(sample_y.shape)
-    #     loss = sample_criterion(sample_output.view(-1, 2), sample_y.view(-1))
-    #     print(loss)
-    #     loss.backward()
-    #     break
+    from model.model_v2 import Modelv2
+    sample_model = Modelv2(share_encoder=sample_share_encoder)
+    for sample_x, sample_y in sample_train_data:
+        sample_output = sample_model(sample_x)
+        print(sample_output.shape)
+        print(sample_y.shape)
+        loss = sample_model.training_step((sample_x, sample_y), [])
+        print(loss)
+        break
     
-    # pass
+    pass
     
