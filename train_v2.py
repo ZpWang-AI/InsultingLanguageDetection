@@ -111,7 +111,7 @@ def main(config: Configv2):
     if config.freeze_encoder:
         model.freeze_encoder()
     
-    log_path = path(config.log_fold)/path(get_cur_time().replace(':', '-')+'_'+config.version)
+    log_path = path(config.log_fold)/path(get_cur_time().replace(':', '-')+'_'+config.version.replace(' ', '_'))
     
     callbacks = [ModelCheckpoint(
         dirpath=log_path/'checkpoint',
@@ -148,7 +148,8 @@ def main(config: Configv2):
         val_dataloaders=val_data,
     )
     running_time = time.time()-start_time
-    logger.log_hyperparams({'running time': running_time})
+    running_time = datetime.timedelta(seconds=int(running_time))
+    logger.log_hyperparams({'running time': str(running_time)})
     
     trainer.test(
         model=model,
@@ -194,7 +195,7 @@ if __name__ == '__main__':
         config.rdrop = True
         main(config)
     
-    display()
+    # display()
     
     def best_model():
         config = Configv2()
@@ -208,7 +209,12 @@ if __name__ == '__main__':
         main(config)
     
     def model_encoder_cmp():
-        model_name_lst = ['bert-base-uncased', 'distilbert-base-uncased', 'roberta-base', 'xlm-roberta-base']
+        model_name_lst = [
+            # 'bert-base-uncased', 
+            # 'distilbert-base-uncased',
+            'roberta-base',
+            'xlm-roberta-base'
+        ]
         config = Configv2()
         config.version = 'encoder of model cmp'
         for model_name in model_name_lst:

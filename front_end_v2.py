@@ -2,38 +2,44 @@ import os
 import torch
 import torch.nn as nn
 import gradio as gr
+import yaml
+# import lightning
 
 from transformers import AutoTokenizer
-from lightning import Fabric
 from lightning.pytorch.utilities.deepspeed import get_fp32_state_dict_from_zero_checkpoint
 
-from utils import *
+# from utils import *
 from model.model_v2 import Modelv2
-from train_v2 import Configv2
 
 
 def main():
-    config = Configv2()
-    cuda_id = get_free_gpu()
+    # cuda_id = get_free_gpu()
     # device = torch.device(f'cuda:{cuda_id}')
     device = torch.device('cpu')
     
-    ckpt_file = './logs/2023-04-13_14-00-09/checkpoint/epoch3-f1score0.45.ckpt/'
+    config_file = './logs/2023-04-13_17-14-12_display/hparams.yaml'
+    ckpt_file = './logs/2023-04-13_17-14-12_display/checkpoint/epoch1-f1score0.56.ckpt/'
+
+    with open(config_file, 'r', encoding='utf-8')as file:
+        config_dic = yaml.load(file, Loader=yaml.FullLoader)
+    
     model = Modelv2(
-        model_name=config.model_name,
-        share_encoder=config.share_encoder,
+        model_name=config_dic['model_name'],
+        share_encoder=config_dic['share_encoder'],
     )
-    model.load_state_dict(get_fp32_state_dict_from_zero_checkpoint(ckpt_file), strict=False)
+    state_dict = get_fp32_state_dict_from_zero_checkpoint(ckpt_file)
+    new_state_dict = {k.replace('_forward_module.', ''):v for k,v in state_dict.items()}
+    model.load_state_dict(new_state_dict)
     model.to(device)
     model.eval()
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name, cache_dir=config.pretrained_model_fold)
+    tokenizer = AutoTokenizer.from_pretrained(config_dic['model_name'], cache_dir=config_dic['pretrained_model_fold'])
     
     def interface_fn(sentence):
         with torch.no_grad():
             x_input = tokenizer([sentence], padding=True, truncation=True, return_tensors='pt')
             x_input = x_input.to(device)
             res = model.predict(x_input)[0]
-            return res
+            # return res
         res = bool(res.cpu().numpy())
         # res = sentence+'hello'
         if res:
@@ -42,9 +48,14 @@ def main():
             return '不存在谩骂类情感'
         # return str(res)
 
-    demo = gr.Interface(fn=interface_fn, inputs="text", outputs="text")
+    demo = gr.Interface(
+        fn=interface_fn, 
+        inputs="text", 
+        outputs="text",
+        examples=['Hello world', 'Nice to meet you', 'Fuck you', 'Son of bitch']
+    )
 
-    demo.launch()   
+    demo.launch(share=True)   
     
 
 if __name__ == '__main__':
