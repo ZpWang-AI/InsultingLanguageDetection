@@ -15,9 +15,10 @@ from train_v2 import Configv2
 def main():
     config = Configv2()
     cuda_id = get_free_gpu()
-    device = torch.device(f'cuda:{cuda_id}')
+    # device = torch.device(f'cuda:{cuda_id}')
+    device = torch.device('cpu')
     
-    ckpt_file = './logs/2023-04-12_19-43-18/checkpoint/epoch5-f1score0.77.ckpt/'
+    ckpt_file = './logs/2023-04-13_14-00-09/checkpoint/epoch3-f1score0.45.ckpt/'
     model = Modelv2(
         model_name=config.model_name,
         share_encoder=config.share_encoder,
@@ -32,6 +33,7 @@ def main():
             x_input = tokenizer([sentence], padding=True, truncation=True, return_tensors='pt')
             x_input = x_input.to(device)
             res = model.predict(x_input)[0]
+            return res
         res = bool(res.cpu().numpy())
         # res = sentence+'hello'
         if res:

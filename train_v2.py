@@ -111,7 +111,7 @@ def main(config: Configv2):
     if config.freeze_encoder:
         model.freeze_encoder()
     
-    log_path = path(config.log_fold)/path(get_cur_time().replace(':', '-'))
+    log_path = path(config.log_fold)/path(get_cur_time().replace(':', '-')+'_'+config.version)
     
     callbacks = [ModelCheckpoint(
         dirpath=log_path/'checkpoint',
@@ -184,7 +184,17 @@ if __name__ == '__main__':
         config.version = 'baseline'
         main(config)
         
-    baseline()
+    # baseline()
+    
+    def display():
+        config = Configv2()
+        config.version = 'display'
+        config.share_encoder = False
+        config.cls_target = 'hd+cv+vo'
+        config.rdrop = True
+        main(config)
+    
+    display()
     
     def best_model():
         config = Configv2()
@@ -204,6 +214,8 @@ if __name__ == '__main__':
         for model_name in model_name_lst:
             config.model_name = model_name
             main(config)
+    
+    model_encoder_cmp()
     
     def structure_cmp():
         config = Configv2()
