@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import lightning
+import gc
+import warnings
 # import fitlog
 
 from tqdm import tqdm
@@ -21,25 +23,33 @@ from model.model_v2 import Modelv2
 class Configv2:
     version = 'bertBase'
     
-    model_name = 'bert-base-uncased'
+    just_test = False
     
+    # cmp
+    model_name = 'bert-base-uncased'
+
+    share_encoder = False
+    cls_target = 'hd'  # hd cv vo hd+vo hd+cv+vo..
+    
+    downsample_data = True
+    positive_ratio = 0.4
+    
+    rdrop = None
+    
+    early_dropout = None
+    
+    # ablation
+    amp = True
+    deepspeed = True
+    
+    freeze_encoder = False
+    
+    # simple settings
     train_data_file = ''
     dev_data_file = ''
     test_data_file = ''
     pretrained_model_fold = './pretrained_model'
     log_fold = './logs'
-    
-    model_ckpt = ''
-    
-    just_test = False
-    downsample_data = True
-    positive_ratio = 0.4
-    freeze_encoder = False
-    share_encoder = False
-    cls_target = 'hd'  # hd cv vo hd+vo hd+cv+vo..
-    
-    amp = True
-    deepspeed = True
     
     epochs = 10
     batch_size = 16
@@ -56,10 +66,12 @@ class Configv2:
         return dict(self.as_list())
 
 
+cuda_id = get_free_gpu()
+print(f'device: cuda {cuda_id}')
+warnings.filterwarnings('ignore')
+
+
 def main(config: Configv2):
-    cuda_id = get_free_gpu()
-    print(f'device: cuda {cuda_id}')
-    
     train_data_init = preprocess_train_data(train_data_file_list[0])
     test_data_init = preprocess_test_data(test_data_file_list[0])
     train_data_init, val_data_init = train_test_split(train_data_init, train_size=config.train_ratio, shuffle=True)
@@ -136,18 +148,28 @@ def main(config: Configv2):
         val_dataloaders=val_data,
     )
     running_time = time.time()-start_time
-    logger.log_metrics('running time', running_time)
+    logger.log_hyperparams({'running time': running_time})
     
     trainer.test(
         model=model,
         dataloaders=test_data,
         ckpt_path='best'
     )
-
+    
+    del trainer, model
+    
+    gc.collect()
+    torch.cuda.empty_cache()
+    
 
 if __name__ == '__main__':
     def just_test_main():
         config = Configv2() 
+        config.version = 'just test'
+        config.epochs = 5
+        config.batch_size = 8
+        config.rdrop = 2
+        config.early_dropout = 2
         config.just_test = True
         config.share_encoder = True
         main(config)
@@ -155,9 +177,24 @@ if __name__ == '__main__':
         main(config)
         exit()
     
+    # just_test_main()
+    
     def baseline():
         config = Configv2()
         config.version = 'baseline'
+        main(config)
+        
+    baseline()
+    
+    def best_model():
+        config = Configv2()
+        config.version = 'best'
+        config.model_name = 'roberta-base'
+        config.rdrop = 4
+        config.early_dropout = 3
+        config.amp = True
+        config.deepspeed = True
+        config.freeze_encoder = False
         main(config)
     
     def model_encoder_cmp():
@@ -167,29 +204,6 @@ if __name__ == '__main__':
         for model_name in model_name_lst:
             config.model_name = model_name
             main(config)
-    
-    def running_time_cmp():
-        config = Configv2()
-        config.version = 'running time cmp'
-        for p in range(4):
-            config.amp = p % 2
-            config.deepspeed = p // 2 % 2
-            main(config)
-    
-    def downsample_cmp():
-        config = Configv2()
-        config.version = 'downsample cmp'
-        config.downsample_data = False
-        main(config)
-        config.downsample_data = True
-        for rate in range(1, 11):
-            config.positive_ratio = rate/10
-            main(config)
-    
-    def freeze_encoder():
-        config = Configv2()
-        config.version = 'freeze encoder'
-        main(config)
     
     def structure_cmp():
         config = Configv2()
@@ -203,4 +217,45 @@ if __name__ == '__main__':
             config.cls_target = cls_tar
             main(config)
     
+    def downsample_cmp():
+        config = Configv2()
+        config.version = 'downsample cmp'
+        config.downsample_data = False
+        main(config)
+        config.downsample_data = True
+        for rate in range(1, 11):
+            config.positive_ratio = rate/10
+            main(config)
+    
+    def rdrop_cmp():
+        config = Configv2()
+        config.version = 'rdrop cmp'
+        config.rdrop = None
+        main(config)
+        for p_rdrop in range(1, 6):
+            config.rdrop = p_rdrop
+            main(config)
+    
+    def early_dropout_cmp():
+        config = Configv2()
+        config.version = 'early dropout cmp'
+        config.early_dropout = None
+        main(config)
+        for start_epoch in range(1, 10):
+            config.early_dropout = start_epoch
+            main(config)
+    
+    def running_time_ablation():
+        config = Configv2()
+        config.version = 'running time ablation'
+        for p in range(4):
+            config.amp = p % 2
+            config.deepspeed = p // 2 % 2
+            main(config)
+    
+    def freeze_encoder_ablation():
+        config = Configv2()
+        config.version = 'freeze encoder ablation'
+        config.freeze_encoder = True
+        main(config)
     

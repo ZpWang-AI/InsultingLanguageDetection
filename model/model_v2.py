@@ -100,8 +100,8 @@ class Modelv2(lightning.LightningModule):
                  model_name='bert-base-uncased',
                  pretrained_model_fold='./pretrained_model',
                  share_encoder=False,
-                 rdrop=True,
-                 early_dropout=True,
+                 rdrop=None,
+                 early_dropout=None,
                  optimizer=torch.optim.AdamW, 
                  lr=5e-5,
                  criterion=nn.CrossEntropyLoss(),
@@ -202,12 +202,14 @@ class Modelv2(lightning.LightningModule):
         
         if self.share_encoder:
             logits_list = [decoder(feature)for decoder in self.decoder_list]  # cls(3), bsz, 2
-            prob_list = [F.softmax(logits, dim=-1)for logits in logits_list]  # cls, bsz, 2
-            return torch.stack(prob_list, dim=0)  # cls, bsz, 2
+            return torch.stack(logits_list, dim=0)
+            # prob_list = [F.softmax(logits, dim=-1)for logits in logits_list]  # cls, bsz, 2
+            # return torch.stack(prob_list, dim=0)  # cls, bsz, 2
         else:
             logits = self.decoder(feature)  # bsz, 2
-            prob = F.softmax(logits, dim=-1)  # bsz, 2
-            return prob
+            return logits
+            # prob = F.softmax(logits, dim=-1)  # bsz, 2
+            # return prob
     
     def predict(self, batch_x):
         output = self(batch_x)  # cls, bsz, 2 or bsz, 2
@@ -216,13 +218,22 @@ class Modelv2(lightning.LightningModule):
     
     def one_step(self, batch, stage):
         xs, ys = batch
-        output = self(xs)
-        
-        loss = self.criterion(output.view(-1,2), ys.view(-1))
+        if self.rdrop == None:
+            logits = self(xs)
+            loss = self.criterion(logits.view(-1,2), ys.view(-1))
+        else:
+            logits1 = self(xs)
+            logits2 = self(xs)
+            logits = logits1
+            ce_loss1 = self.criterion(logits1.view(-1,2), ys.view(-1))
+            ce_loss2 = self.criterion(logits2.view(-1,2), ys.view(-1))
+            kl_loss1 = F.kl_div(F.log_softmax(logits1, dim=-1), F.softmax(logits2, dim=-1), reduction='mean')
+            kl_loss2 = F.kl_div(F.log_softmax(logits2, dim=-1), F.softmax(logits1, dim=-1), reduction='mean')
+            loss = (ce_loss1+ce_loss2)/2 + self.rdrop * (kl_loss1+kl_loss2)/2
         self.log(f'{stage}_loss', loss)
         
         with torch.no_grad():
-            preds = torch.argmax(output, -1)
+            preds = torch.argmax(logits, -1)
             metric_list = getattr(self, f'{stage}_metric_list')
             if self.share_encoder:
                 macro_f1 = 0
@@ -239,6 +250,15 @@ class Modelv2(lightning.LightningModule):
                     self.log(f'{stage}_{metric_name}', metric, on_epoch=True, on_step=False)
                 self.log(f'{stage}_macro_f1', metric_list[-1], on_epoch=True, on_step=False)
         return loss
+    
+    def on_train_epoch_start(self) -> None:
+        # print(self.current_epoch)
+        if self.early_dropout == None:
+            return
+        if self.current_epoch == self.early_dropout:
+            for name, module in self.named_modules():
+                if isinstance(module, nn.Dropout):
+                    module.p = 0
     
     def training_step(self, batch, batch_idx):
         return self.one_step(batch, 'train')
