@@ -1,0 +1,14 @@
+deepspeed==0.8.3
+fitlog==0.9.15
+gradio==3.25.0
+lightning==2.0.1
+numpy==1.23.4
+pandas==1.5.3
+pynvml==11.5.0
+PyYAML==6.0
+scikit_learn==1.2.2
+torch==1.13.0
+torcheval==0.0.6
+torchmetrics==0.11.4
+tqdm==4.64.1
+transformers==4.25.1
