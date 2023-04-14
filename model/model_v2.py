@@ -217,6 +217,12 @@ class Modelv2(lightning.LightningModule):
         preds = torch.argmax(output, dim=-1)  # cls, bsz or bsz
         return preds
     
+    def predict_prob(self, batch_x):
+        output = self(batch_x)
+        probs = torch.softmax(output, dim=-1)
+        probs = probs[..., 1]
+        return probs
+        
     def one_step(self, batch, stage):
         xs, ys = batch
         if self.rdrop == None:

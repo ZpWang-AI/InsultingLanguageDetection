@@ -331,9 +331,9 @@ if __name__ == '__main__':
     
     # model_encoder_cmp() # 4
     # structure_cmp() # 5
-    downsample_cmp()
-    # rdrop_cmp()
-    # early_dropout_cmp()
+    # downsample_cmp()
+    # rdrop_cmp() # 6
+    early_dropout_cmp()
     # running_time_ablation() # 4
     # freeze_encoder_ablation() # 1
     
