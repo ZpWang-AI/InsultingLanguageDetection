@@ -29,7 +29,7 @@ class Configv2:
     model_name = 'bert-base-uncased'
 
     share_encoder = False
-    cls_target = 'hd'  # hd cv vo hd+vo hd+cv+vo..
+    cls_target = 'hd+cv+vo'  # hd cv vo hd+vo hd+cv+vo..
     
     downsample_data = True
     positive_ratio = 0.4
@@ -66,7 +66,7 @@ class Configv2:
         return dict(self.as_list())
 
 
-cuda_id = get_free_gpu()
+cuda_id = ManageGPUs.get_free_gpu()
 print(f'device: cuda {cuda_id}')
 warnings.filterwarnings('ignore')
 
@@ -117,7 +117,7 @@ def main(config: Configv2):
         dirpath=log_path/'checkpoint',
         filename='epoch{epoch}-f1score{val_macro_f1:.2f}',
         monitor='val_macro_f1',
-        save_top_k=3,
+        save_top_k=1,
         mode='max',
         auto_insert_metric_name=False,
         save_weights_only=True,
@@ -270,7 +270,7 @@ if __name__ == '__main__':
         main(config)
     
     # just_test_main()
-    # baseline()
+    baseline()
     # display()
     # best_model()
     # model_encoder_cmp()
@@ -280,5 +280,6 @@ if __name__ == '__main__':
     # early_dropout_cmp()
     # running_time_ablation()
     # freeze_encoder_ablation()
+    
     
     pass

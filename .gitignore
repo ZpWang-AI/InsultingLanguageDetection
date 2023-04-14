@@ -17,5 +17,6 @@ test*
 *.zip
 nohup.out
 
+_*.py
 __pycache__
 .vscode
