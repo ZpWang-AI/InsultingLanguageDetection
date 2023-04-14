@@ -39,6 +39,7 @@ def main():
         model = Modelv2(
             model_name=config_dic['model_name'],
             share_encoder=config_dic['share_encoder'],
+            pretrained_model_fold=config_dic['pretrained_model_fold']
         )
         for son_file in os.listdir(ckpt_fold):
             son_file = ckpt_fold/son_file
