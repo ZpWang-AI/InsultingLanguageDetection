@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import gradio as gr
+import pandas as pd
 import yaml
 # import lightning
 
@@ -18,11 +19,13 @@ def main():
     # device = torch.device(f'cuda:{cuda_id}')
     device = torch.device('cpu')
     
-    cls_lst = ['Assaults on Human Dignity', 'Call for Violence', 'Vulgarity/Ofensive Language directed at an individual']
+    cls_lst = ['hd', 'cv', 'vo']
     # hd: Assaults on Human Dignity 侵犯人类尊严
     # cv: Call for Violence 呼吁暴力
     # vo: Vulgarity/Ofensive Language directed at an individual 针对个人的粗俗/冒犯性语言
-    ckpt_fold_lst = []
+
+    ckpt_fold_root = path('./logs/display_v3/')
+    ckpt_fold_lst = [ckpt_fold_root/p for p in sorted(os.listdir(ckpt_fold_root))]
     config_lst = []
     model_lst = []
 
@@ -54,19 +57,26 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(config_dic['model_name'], cache_dir=config_dic['pretrained_model_fold'])
     
     def interface_fn(sentences):
+        sentences = sentences.split('\n')
+        res = pd.DataFrame()
+        res['Sentence'] = sentences
         with torch.no_grad():
-            x_input = tokenizer(sentences.split('\n'), padding=True, truncation=True, return_tensors='pt')
+            x_input = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
             x_input = x_input.to(device)
+            # res_lst = []
             for cls_name, model in zip(cls_lst, model_lst):
-                res = model.predict(x_input)[0]
-            # return res
-        res = bool(res.cpu().numpy())
-        # res = sentence+'hello'
-        if res:
-            return '存在谩骂类情感'
-        else:
-            return '不存在谩骂类情感'
-        # return str(res)
+                prob = model.predict_prob(x_input)  # bsz
+                res[cls_name] = [f'{int(p*100):d}%'for p in prob.cpu().numpy()]
+        return res
+            #     res_lst.append(res)
+            # output_lst = []
+            # for ps, sen in enumerate(sentences):
+            #     cur_cls = [cls_name for p, cls_name in enumerate(cls_lst) if bool(res_lst[p][ps].cpu().numpy())]
+            #     if not cur_cls:
+            #         continue
+            #     output_lst.append(f'Initial Sentence: {sen}')
+            #     output_lst.append(f'Abusive emotion(s): {", ".join(cur_cls)}')
+            # return '\n'.join(output_lst)
     
     
     examples = [
@@ -76,13 +86,21 @@ def main():
         'Holy shit! You such a bitch just got my shoes dirty.\n'
         'Oh, sorry, I apologize.\n'
         'Well. Watch out next time.'
-    ],
+    ]
+    description = '''
+        hd: Assaults on Human Dignity 
+        cv: Call for Violence 
+        vo: Vulgarity/Ofensive Language directed at an individual 
+    '''.strip()
 
     demo = gr.Interface(
         fn=interface_fn, 
-        inputs=gr.inputs.Textbox(lines=2, label="Inputs(English)"), 
-        outputs=gr.outputs.Textbox(label="Outputs"),
+        title='Insulting Language Detection',
+        inputs=gr.inputs.Textbox(lines=2, label="Inputs (English)"), 
+        outputs=gr.outputs.Dataframe(headers=['Sentence']+cls_lst, label='Output', type='pandas'),
+        # outputs=gr.outputs.Textbox(label="Outputs"),
         examples=examples,
+        description=description,
     )
 
     demo.launch(share=True)   

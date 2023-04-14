@@ -34,6 +34,13 @@ def main():
 
 
 if __name__ == '__main__':
-    project_fold = './logs/downsample_cmp/'
-    for k, v in get_config_from_project(project_fold).items():
-        print(k, v)
+    project_fold = './logs/structure_cmp/'
+    # for k, v in get_config_from_project(project_fold).items():
+    #     print(k, v)
+    # project_dic = path(project_fold)
+    # for log_fold in os.listdir(project_dic):
+    #     log_fold = project_dic/log_fold
+    #     if completed_mark_file in os.listdir(log_fold):
+    #         config_dic = load_config_from_yaml(log_fold/'hparams.yaml')
+    #         if config_dic['share_encoder'] == False and '+' not in config_dic['cls_target']:
+    #             print(log_fold)
