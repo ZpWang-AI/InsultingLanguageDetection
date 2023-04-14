@@ -2,18 +2,38 @@ import pandas as pd
 import numpy as np
 import fitlog
 
+from collections import defaultdict
 
-def filter_nan(line_data):
-    return [p for p in line_data if not np.isnan(p)]
+from utils import *
+from train_v2 import completed_mark_file
+
+
+def get_metric_line(file_path, metric_name):
+    record = pd.read_csv(file_path, sep=',')
+    val_macro_f1 = record[metric_name]
+    val_macro_f1 = val_macro_f1[~val_macro_f1.isnull()]
+    return val_macro_f1
+
+
+def get_config_from_project(project_dic, filter_same=True):
+    project_dic = path(project_dic)
+    all_config_dic = defaultdict(set)
+    for log_fold in os.listdir(project_dic):
+        log_fold = project_dic/log_fold
+        if completed_mark_file in os.listdir(log_fold):
+            config_dic = load_config_from_yaml(log_fold/'hparams.yaml')
+            for k in config_dic:
+                all_config_dic[k].add(config_dic[k])
+    if filter_same:
+        all_config_dic = {k:v for k, v in all_config_dic.items() if len(v)>1}
+    return all_config_dic
 
 
 def main():
-    file = './logs/2023-04-13_14-00-09/metrics.csv'
-    record = pd.read_csv(file, sep=',')
-    val_macro_f1 = record['val_macro_f1']
-    val_macro_f1 = val_macro_f1[~val_macro_f1.isnull()]
-    print(val_macro_f1)
+    pass
 
 
 if __name__ == '__main__':
-    main()
+    project_fold = './logs/downsample_cmp/'
+    for k, v in get_config_from_project(project_fold).items():
+        print(k, v)

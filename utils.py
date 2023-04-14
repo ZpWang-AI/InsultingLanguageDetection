@@ -6,6 +6,7 @@ import sys
 import threading 
 import torch
 import pynvml
+import yaml
 
 from typing import *
 from pathlib import Path as path
@@ -235,6 +236,12 @@ class ManageGPUs:
         )
         
     
+def load_config_from_yaml(file_path):
+    with open(file_path, 'r', encoding='utf-8')as file:
+        config_dic = yaml.load(file, Loader=yaml.FullLoader)    
+    return config_dic
+
+
 if __name__ == '__main__':
     # for d in get_all_files('.'):
     # for d in clock(get_all_files)(os.getcwd(), True)[:5]:  # type: ignore        

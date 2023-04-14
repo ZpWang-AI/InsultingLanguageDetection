@@ -5,6 +5,9 @@ import torch.nn as nn
 import lightning
 import gc
 import warnings
+import yaml
+import shutil
+import traceback
 # import fitlog
 
 from tqdm import tqdm
@@ -66,12 +69,63 @@ class Configv2:
         return dict(self.as_list())
 
 
-cuda_id = ManageGPUs.get_free_gpu()
-print(f'device: cuda {cuda_id}')
-warnings.filterwarnings('ignore')
+if __name__ == '__main__':
+    cuda_id = ManageGPUs.get_free_gpu(target_mem_mb=9000)
+    print(f'device: cuda {cuda_id}')
+    warnings.filterwarnings('ignore')
+
+completed_mark_file = 'yes.txt'
+error_mark_file = 'error.txt'
 
 
-def main(config: Configv2):
+def clear_error_log(log_root='./logs/'):
+    log_root = path(log_root)
+    for project_fold in os.listdir(log_root):
+        project_fold = log_root/project_fold
+        for log_fold in os.listdir(project_fold):
+            log_fold = project_fold/log_fold
+            log_fold: path
+            if log_fold.is_dir() and error_mark_file in os.listdir(log_fold):
+                shutil.rmtree(log_fold)
+
+
+def main_decorator(main_func):
+    def new_main_func(config):
+        try:
+            log_path = path(config.log_fold)
+            log_path /= path(config.version.replace(' ', '_'))
+            log_path.mkdir(parents=True, exist_ok=True)
+            
+            config_dic = config.as_dict()
+            for son_dir in os.listdir(log_path):
+                son_dir = log_path/path(son_dir)
+                son_config_dic = load_config_from_yaml(son_dir/path('hparams.yaml'))
+                if all(config_dic[k] == son_config_dic[k] for k in config_dic) and completed_mark_file in os.listdir(son_dir):
+                    return 
+            log_path /= path(get_cur_time().replace(':', '-'))
+            log_path.mkdir(parents=True, exist_ok=True)
+
+            gc.collect()
+            torch.cuda.empty_cache()
+            main_func(config, log_path)
+            gc.collect()
+            torch.cuda.empty_cache()
+
+            with open(log_path/path(completed_mark_file), 'w')as f:
+                f.write('')
+                
+        except Exception as cur_error:
+            with open(log_path/path(error_mark_file), 'w')as f:
+                f.write(str(cur_error))
+                f.write('\n'+'-'*20+'\n')
+                f.write(traceback.format_exc())
+    
+    return new_main_func
+
+
+@main_decorator
+def main(config: Configv2, log_path):
+
     train_data_init = preprocess_train_data(train_data_file_list[0])
     test_data_init = preprocess_test_data(test_data_file_list[0])
     train_data_init, val_data_init = train_test_split(train_data_init, train_size=config.train_ratio, shuffle=True)
@@ -111,10 +165,9 @@ def main(config: Configv2):
     if config.freeze_encoder:
         model.freeze_encoder()
     
-    log_path = path(config.log_fold)/path(get_cur_time().replace(':', '-')+'_'+config.version.replace(' ', '_'))
-    
     callbacks = [ModelCheckpoint(
-        dirpath=log_path/'checkpoint',
+        # dirpath=log_path/'checkpoint',
+        dirpath=log_path,
         filename='epoch{epoch}-f1score{val_macro_f1:.2f}',
         monitor='val_macro_f1',
         save_top_k=1,
@@ -157,10 +210,7 @@ def main(config: Configv2):
         ckpt_path='best'
     )
     
-    del trainer, model
-    
-    gc.collect()
-    torch.cuda.empty_cache()
+    del trainer, model, callbacks, logger
     
 
 if __name__ == '__main__':
@@ -204,8 +254,8 @@ if __name__ == '__main__':
     
     def model_encoder_cmp():
         model_name_lst = [
-            # 'bert-base-uncased', 
-            # 'distilbert-base-uncased',
+            'bert-base-uncased', 
+            'distilbert-base-uncased',
             'roberta-base',
             'xlm-roberta-base'
         ]
@@ -267,19 +317,25 @@ if __name__ == '__main__':
         config = Configv2()
         config.version = 'freeze encoder ablation'
         config.freeze_encoder = True
+        config.deepspeed = False
         main(config)
-    
+
+    '''
+    nohup python train_v2.py &
+    python train_v2.py
+    '''
     # just_test_main()
-    baseline()
-    # display()
+    # baseline() # 1
+    # display() 
     # best_model()
-    # model_encoder_cmp()
-    # structure_cmp()
-    # downsample_cmp()
+    
+    # model_encoder_cmp() # 4
+    # structure_cmp() # 5
+    downsample_cmp()
     # rdrop_cmp()
     # early_dropout_cmp()
-    # running_time_ablation()
-    # freeze_encoder_ablation()
+    # running_time_ablation() # 4
+    # freeze_encoder_ablation() # 1
     
     
     pass
