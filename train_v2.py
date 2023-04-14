@@ -177,16 +177,12 @@ if __name__ == '__main__':
         config.share_encoder = False
         main(config)
         exit()
-    
-    # just_test_main()
-    
+
     def baseline():
         config = Configv2()
         config.version = 'baseline'
         main(config)
-        
-    # baseline()
-    
+
     def display():
         config = Configv2()
         config.version = 'display'
@@ -194,9 +190,7 @@ if __name__ == '__main__':
         config.cls_target = 'hd+cv+vo'
         config.rdrop = True
         main(config)
-    
-    # display()
-    
+
     def best_model():
         config = Configv2()
         config.version = 'best'
@@ -220,8 +214,6 @@ if __name__ == '__main__':
         for model_name in model_name_lst:
             config.model_name = model_name
             main(config)
-    
-    model_encoder_cmp()
     
     def structure_cmp():
         config = Configv2()
@@ -277,3 +269,16 @@ if __name__ == '__main__':
         config.freeze_encoder = True
         main(config)
     
+    # just_test_main()
+    # baseline()
+    # display()
+    # best_model()
+    # model_encoder_cmp()
+    # structure_cmp()
+    # downsample_cmp()
+    # rdrop_cmp()
+    # early_dropout_cmp()
+    # running_time_ablation()
+    # freeze_encoder_ablation()
+    
+    pass
