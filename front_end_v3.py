@@ -103,7 +103,7 @@ def main():
         description=description,
     )
 
-    demo.launch(share=True)   
+    demo.launch()   
     
 
 if __name__ == '__main__':
