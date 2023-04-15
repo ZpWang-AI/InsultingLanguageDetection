@@ -86,7 +86,9 @@ def main():
         'Fuck you idiot!',
         'Holy shit! You such a bitch just got my shoes dirty.\n'
         'Oh, sorry, I apologize.\n'
-        'Well. Watch out next time.'
+        'Well. Watch out next time.',
+        'These assassins trade lives for money.\n'
+        'Ha ha. They were paid what they were worth.'
     ]
     description = '''
         hd: Assaults on Human Dignity 
