@@ -1,12 +1,6 @@
 from train_v2 import *
 
 
-if __name__ == '__main__':
-    cuda_id = ManageGPUs.get_free_gpu(target_mem_mb=9000)
-    print(f'device: cuda {cuda_id}')
-    warnings.filterwarnings('ignore')
-    
-
 def just_test_main():
     config = Configv2() 
     config.version = 'just test'
@@ -37,12 +31,15 @@ def display():
 def best_model():
     config = Configv2()
     config.version = 'best'
-    config.model_name = 'roberta-base'
-    config.rdrop = 4
-    config.early_dropout = 3
-    config.amp = True
+    config.model_name = 'bert-base-uncased'
+    config.downsample_data = True
+    config.positive_ratio = 0.3
+    config.rdrop = 1
+    config.early_dropout = 4
+    config.amp = False
     config.deepspeed = True
     config.freeze_encoder = False
+    config.cls_target = 'hd+cv+vo'
     main(config)
 
 def model_encoder_cmp():
@@ -50,7 +47,11 @@ def model_encoder_cmp():
         'bert-base-uncased', 
         'distilbert-base-uncased',
         'roberta-base',
-        'xlm-roberta-base'
+        'xlm-roberta-base',
+        'albert-base-v2',
+        'microsoft/deberta-v3-base',
+        'xlnet-base-cased',
+        'google/electra-base-discriminator',
     ]
     config = Configv2()
     config.version = 'encoder of model cmp'
@@ -122,7 +123,7 @@ python train_v2.py
 # display() 
 # best_model()
 
-# model_encoder_cmp() # 4
+model_encoder_cmp() # 4
 # structure_cmp() # 5
 # downsample_cmp() # 11
 # rdrop_cmp() # 6

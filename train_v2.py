@@ -69,11 +69,7 @@ class Configv2:
         return dict(self.as_list())
 
 
-if __name__ == '__main__':
-    cuda_id = ManageGPUs.get_free_gpu(target_mem_mb=9000)
-    print(f'device: cuda {cuda_id}')
-    warnings.filterwarnings('ignore')
-
+devices = []
 completed_mark_file = 'yes.txt'
 error_mark_file = 'error.txt'
 
@@ -92,6 +88,12 @@ def clear_error_log(log_root='./logs/'):
 def main_decorator(main_func):
     def new_main_func(config):
         try:
+            if not devices:
+                cuda_id = ManageGPUs.get_free_gpu(target_mem_mb=9000)
+                print(f'device: cuda {cuda_id}')
+                warnings.filterwarnings('ignore')
+                devices.append(cuda_id)
+                
             log_path = path(config.log_fold)
             log_path /= path(config.version.replace(' ', '_'))
             log_path.mkdir(parents=True, exist_ok=True)
@@ -99,9 +101,11 @@ def main_decorator(main_func):
             config_dic = config.as_dict()
             for son_dir in os.listdir(log_path):
                 son_dir = log_path/path(son_dir)
-                son_config_dic = load_config_from_yaml(son_dir/path('hparams.yaml'))
-                if all(config_dic[k] == son_config_dic[k] for k in config_dic) and completed_mark_file in os.listdir(son_dir):
-                    return 
+                son_dir_hparams = son_dir/'hparams.yaml'
+                if son_dir_hparams.exists():
+                    son_config_dic = load_config_from_yaml(son_dir_hparams)
+                    if all(config_dic[k] == son_config_dic[k] for k in config_dic) and completed_mark_file in os.listdir(son_dir):
+                        return 
             log_path /= path(get_cur_time().replace(':', '-'))
             log_path.mkdir(parents=True, exist_ok=True)
 
@@ -182,7 +186,7 @@ def main(config: Configv2, log_path):
     trainer = lightning.Trainer(
         accelerator='gpu',
         strategy=('deepspeed_stage_2' if config.deepspeed else 'auto'),
-        devices=[cuda_id],
+        devices=devices,
         precision=('16-mixed' if config.amp else '32-true'),
         logger=logger,
         callbacks=callbacks,
