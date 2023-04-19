@@ -3,11 +3,15 @@ import pandas as pd
 import numpy as np
 import fitlog
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from utils import *
 from corpus_v2 import *
 from train_v2 import completed_mark_file
+
+
+pd.set_option('display.max_columns', 10**9)
+pd.set_option('display.max_rows', 10**9)
 
 
 def filter_null(pd_data):
@@ -79,11 +83,11 @@ class Analyzer:
             all_res.drop('running time', axis=1, inplace=True, errors='ignore')
         if sort_data:
             all_res.sort_values(by=list(all_res.columns), inplace=True, ascending=True)
-        all_res.reset_index()
+        all_res.reset_index(inplace=True)
         return all_res
 
 
-def get_all_res():
+def get_all_res(output_path=''):
     project_name_lst = [
         'best',
 
@@ -95,11 +99,12 @@ def get_all_res():
         'running_time_ablation',
         'freeze_encoder_ablation',
     ]
+    all_res = OrderedDict()
     baseline_config = load_config_from_yaml('./logs/baseline/2023-04-14_16-49-30/hparams.yaml')
     baseline_config = pd.Series(baseline_config)
+    all_res['baseline_config'] = baseline_config
     print(baseline_config)
     for p, project_name in enumerate(project_name_lst):
-        print(project_name)
         res = Analyzer.get_res_from_project(
             path('./logs/')/project_name,
             metric_only_f1=True,
@@ -107,12 +112,18 @@ def get_all_res():
             filter_same_column=True,
             filter_running_time=(p not in [6, 7]),
         )
+        all_res[project_name] = res
+        print(project_name)
         print(res)
+    if output_path:
+        for k in all_res:
+            all_res[k].to_excel(excel_writer=output_path, sheet_name=str(k), index=False)
+    return all_res
         
 
 def get_data_info():
     def inner(data):
-        data_label = train_data[:,1:]
+        data_label = data[:,1:]
         print(data_label.shape[0])
         print(np.sum(data_label, axis=0))
         print(np.sum(np.sum(data_label, axis=1) != 0))
@@ -130,4 +141,4 @@ def main():
 
 
 if __name__ == '__main__':
-    get_data_info()
+    get_all_res('./_result.xlsx')

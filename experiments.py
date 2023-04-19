@@ -31,16 +31,25 @@ def display():
 def best_model():
     config = Configv2()
     config.version = 'best'
-    config.model_name = 'bert-base-uncased'
     config.downsample_data = True
     config.positive_ratio = 0.3
-    config.rdrop = 1
-    config.early_dropout = 4
-    config.amp = False
+    config.amp = True
     config.deepspeed = True
     config.freeze_encoder = False
     config.cls_target = 'hd+cv+vo'
-    main(config)
+
+    model_name_lst = [
+        'bert-base-uncased', 
+        'roberta-base',
+        'xlnet-base-cased',
+    ]
+    for model_name in model_name_lst:
+        for rdrop in range(1, 6):
+            for early_dropout in range(1, 6):
+                config.model_name = model_name
+                config.rdrop = rdrop
+                config.early_dropout = early_dropout
+                main(config)
 
 def model_encoder_cmp():
     model_name_lst = [
@@ -49,7 +58,7 @@ def model_encoder_cmp():
         'roberta-base',
         'xlm-roberta-base',
         'albert-base-v2',
-        'microsoft/deberta-v3-base',
+        # 'microsoft/deberta-v3-base',
         'xlnet-base-cased',
         'google/electra-base-discriminator',
     ]
@@ -114,16 +123,15 @@ def freeze_encoder_ablation():
     config.deepspeed = False
     main(config)
 
-'''
-nohup python train_v2.py &
-python train_v2.py
-'''
+
+# clear_error_log()
+
 # just_test_main()
 # baseline() # 1
 # display() 
-# best_model()
+best_model()
 
-model_encoder_cmp() # 4
+# model_encoder_cmp() # 4
 # structure_cmp() # 5
 # downsample_cmp() # 11
 # rdrop_cmp() # 6
