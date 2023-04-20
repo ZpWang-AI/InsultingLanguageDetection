@@ -71,6 +71,7 @@ class Configv2:
 
 devices = []
 completed_mark_file = 'yes.txt'
+running_mark_file = 'running.txt'
 error_mark_file = 'error.txt'
 
 
@@ -78,52 +79,67 @@ def clear_error_log(log_root='./logs/'):
     log_root = path(log_root)
     for project_fold in os.listdir(log_root):
         project_fold = log_root/project_fold
+        cnt = 0
         for log_fold in os.listdir(project_fold):
             log_fold = project_fold/log_fold
-            log_fold: path
-            if log_fold.is_dir() and error_mark_file in os.listdir(log_fold):
+            if (
+                log_fold.is_dir()
+                and running_mark_file not in os.listdir(log_fold)
+                and completed_mark_file not in os.listdir(log_fold)
+            ):
                 shutil.rmtree(log_fold)
+                cnt += 1
+        if cnt:
+            print(
+                f'project[{project_fold.name}], '
+                f'clear: {cnt}, '
+                f'remain: {len(os.listdir(project_fold))}'
+            )
 
 
 def main_decorator(main_func):
     def new_main_func(config):
-        try:
-            if not devices:
-                cuda_id = ManageGPUs.get_free_gpu(target_mem_mb=9000)
-                print(f'device: cuda {cuda_id}')
-                warnings.filterwarnings('ignore')
-                devices.append(cuda_id)
-                
-            log_path = path(config.log_fold)
-            log_path /= path(config.version.replace(' ', '_'))
-            log_path.mkdir(parents=True, exist_ok=True)
+        if not devices:
+            cuda_id = ManageGPUs.get_free_gpu(target_mem_mb=9000)
+            print(f'device: cuda {cuda_id}')
+            warnings.filterwarnings('ignore')
+            devices.append(cuda_id)
             
-            config_dic = config.as_dict()
-            for son_dir in os.listdir(log_path):
-                son_dir = log_path/path(son_dir)
-                son_dir_hparams = son_dir/'hparams.yaml'
-                if son_dir_hparams.exists():
-                    son_config_dic = load_config_from_yaml(son_dir_hparams)
-                    if all(config_dic[k] == son_config_dic[k] for k in config_dic) and completed_mark_file in os.listdir(son_dir):
-                        return 
-            log_path /= path(get_cur_time().replace(':', '-'))
-            log_path.mkdir(parents=True, exist_ok=True)
+        log_path = path(config.log_fold)
+        log_path /= path(config.version.replace(' ', '_'))
+        log_path.mkdir(parents=True, exist_ok=True)
+        
+        config_dic = config.as_dict()
+        for son_dir in os.listdir(log_path):
+            son_dir = log_path/path(son_dir)
+            son_dir_hparams = son_dir/'hparams.yaml'
+            if son_dir_hparams.exists():
+                son_config_dic = load_config_from_yaml(son_dir_hparams)
+                if all(config_dic[k] == son_config_dic[k] for k in config_dic) and completed_mark_file in os.listdir(son_dir):
+                    return 
+        log_path /= path(get_cur_time().replace(':', '-'))
+        log_path.mkdir(parents=True, exist_ok=True)
+        
+        with open(log_path/running_mark_file, 'w')as f:
+            f.write('')
 
+        try:
             gc.collect()
             torch.cuda.empty_cache()
             main_func(config, log_path)
             gc.collect()
             torch.cuda.empty_cache()
-
-            with open(log_path/path(completed_mark_file), 'w')as f:
-                f.write('')
-                
         except Exception as cur_error:
             with open(log_path/path(error_mark_file), 'w')as f:
                 f.write(str(cur_error))
                 f.write('\n'+'-'*20+'\n')
                 f.write(traceback.format_exc())
-    
+        else:
+            with open(log_path/completed_mark_file, 'w')as f:
+                f.write('')
+        finally:
+            os.remove(log_path/running_mark_file)
+            
     return new_main_func
 
 
