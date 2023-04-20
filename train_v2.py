@@ -115,7 +115,10 @@ def main_decorator(main_func):
             son_dir_hparams = son_dir/'hparams.yaml'
             if son_dir_hparams.exists():
                 son_config_dic = load_config_from_yaml(son_dir_hparams)
-                if all(config_dic[k] == son_config_dic[k] for k in config_dic) and completed_mark_file in os.listdir(son_dir):
+                if (
+                    all(config_dic[k] == son_config_dic[k] for k in config_dic) and 
+                    (completed_mark_file in os.listdir(son_dir) or running_mark_file in os.listdir(son_dir))
+                ):
                     return 
         log_path /= path(get_cur_time().replace(':', '-'))
         log_path.mkdir(parents=True, exist_ok=True)
