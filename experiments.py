@@ -59,6 +59,7 @@ def model_encoder_cmp():
         'xlm-roberta-base',
         'albert-base-v2',
         # 'microsoft/deberta-v3-base',
+        'facebook/bart-base',
         'xlnet-base-cased',
         'google/electra-base-discriminator',
     ]
@@ -129,9 +130,9 @@ def freeze_encoder_ablation():
 # just_test_main()
 # baseline() # 1
 # display() 
-best_model()
+# best_model()
 
-# model_encoder_cmp() # 4
+model_encoder_cmp() # 4
 # structure_cmp() # 5
 # downsample_cmp() # 11
 # rdrop_cmp() # 6

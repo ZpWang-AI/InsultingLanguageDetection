@@ -81,8 +81,10 @@ class Analyzer:
             all_res.drop(filter(filter_fn, all_res.columns), axis=1, inplace=True, errors='ignore')
         if filter_running_time:
             all_res.drop('running time', axis=1, inplace=True, errors='ignore')
-        if sort_data:
+        if sort_data == True:
             all_res.sort_values(by=list(all_res.columns), inplace=True, ascending=True)
+        elif sort_data != False:
+            all_res.sort_values(by=list(sort_data), inplace=True, ascending=True)
         all_res.reset_index(inplace=True)
         return all_res
 

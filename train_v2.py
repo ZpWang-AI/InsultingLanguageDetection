@@ -133,10 +133,18 @@ def main_decorator(main_func):
             gc.collect()
             torch.cuda.empty_cache()
         except Exception as cur_error:
+            error_info = ''.join(
+                str(cur_error),
+                '\n'+'-'*20+'\n',
+                traceback.format_exc()
+            )
+            print(error_info)
             with open(log_path/path(error_mark_file), 'w')as f:
-                f.write(str(cur_error))
-                f.write('\n'+'-'*20+'\n')
-                f.write(traceback.format_exc())
+                f.write(error_info)
+            
+            cuda_mem_error = 'CUDA out of memory.'
+            if str(cur_error)[:len(cuda_mem_error)] == cuda_mem_error:
+                exit(1)
         else:
             with open(log_path/completed_mark_file, 'w')as f:
                 f.write('')
