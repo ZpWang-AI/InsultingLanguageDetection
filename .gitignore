@@ -15,7 +15,10 @@ flagged
 test*
 *.sh
 *.zip
+*.ttf
+*.TTF
 nohup.out
+draw.ipynb
 
 _*.*
 __pycache__

@@ -57,6 +57,7 @@ class Analyzer:
         sort_data=True,
         filter_same_column=True,
         filter_running_time=False,
+        add_log_fold=True,
     ):
         project_dic = path(project_dic)
         all_res = pd.DataFrame()
@@ -66,6 +67,9 @@ class Analyzer:
             metric_data = pd.read_csv(log_fold/'metrics.csv')
             metric_data = Analyzer._deal_metric(log_fold, metric_data, metric_only_f1)
             cur_res = pd.concat([config_dic, metric_data], axis=1)
+            if add_log_fold:
+                log_fold_pd = pd.DataFrame({'res_fold': str(log_fold)}, index=[0])
+                cur_res = pd.concat([cur_res, log_fold_pd], axis=1)
             all_res = pd.concat([all_res, cur_res])
         
         if filter_same_column:
@@ -91,6 +95,7 @@ class Analyzer:
 
 def get_all_res(output_path=''):
     project_name_lst = [
+        'baseline',
         'best',
 
         'encoder_of_model_cmp',
@@ -105,21 +110,26 @@ def get_all_res(output_path=''):
     baseline_config = load_config_from_yaml('./logs/baseline/2023-04-14_16-49-30/hparams.yaml')
     baseline_config = pd.Series(baseline_config)
     all_res['baseline_config'] = baseline_config
-    print(baseline_config)
     for p, project_name in enumerate(project_name_lst):
         res = Analyzer.get_res_from_project(
             path('./logs/')/project_name,
-            metric_only_f1=True,
+            metric_only_f1=False,
             sort_data=True,
             filter_same_column=True,
-            filter_running_time=(p not in [6, 7]),
+            # filter_running_time=(p not in [6, 7]),
+            filter_running_time=False,
+            add_log_fold=True,
         )
         all_res[project_name] = res
-        print(project_name)
-        print(res)
+        
+    for k, v in all_res.items():
+        print(k)
+        print(v, '\n')
+        
     if output_path:
-        for k in all_res:
-            all_res[k].to_excel(excel_writer=output_path, sheet_name=str(k), index=False)
+        with pd.ExcelWriter(output_path, mode='a', if_sheet_exists='replace')as writer:
+            for k in all_res:
+                all_res[k].to_excel(excel_writer=writer, sheet_name=str(k), index=False)
     return all_res
         
 
@@ -143,4 +153,5 @@ def main():
 
 
 if __name__ == '__main__':
-    get_all_res('./_result.xlsx')
+    # get_all_res('./_result.xlsx')
+    get_data_info()

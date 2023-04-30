@@ -72,6 +72,16 @@ def model_encoder_cmp():
 def structure_cmp():
     config = Configv2()
     config.version = 'structure cmp'
+    
+    config.share_encoder = True
+    config.downsample_data = False
+    main(config)
+    config.share_encoder = False
+    config.downsample_data = False
+    for cls_tar in ['hd', 'cv', 'vo']:
+        config.cls_target = cls_tar
+        main(config)
+    
     config.share_encoder = True
     config.positive_ratio = 2/3
     main(config)
@@ -132,8 +142,8 @@ def freeze_encoder_ablation():
 # display() 
 # best_model()
 
-model_encoder_cmp() # 4
-# structure_cmp() # 5
+# model_encoder_cmp() # 4
+structure_cmp() # 5
 # downsample_cmp() # 11
 # rdrop_cmp() # 6
 # early_dropout_cmp() # 10
