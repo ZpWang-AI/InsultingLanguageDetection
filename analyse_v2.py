@@ -4,6 +4,7 @@ import numpy as np
 import fitlog
 
 from collections import defaultdict, OrderedDict
+from transformers import AutoModel
 
 from utils import *
 from corpus_v2 import *
@@ -127,6 +128,8 @@ def get_all_res(output_path=''):
         print(v, '\n')
         
     if output_path:
+        output_path = path(output_path)
+        # with pd.ExcelWriter(output_path, mode='w', if_sheet_exists='replace')as writer:
         with pd.ExcelWriter(output_path, mode='a', if_sheet_exists='replace')as writer:
             for k in all_res:
                 all_res[k].to_excel(excel_writer=writer, sheet_name=str(k), index=False)
@@ -148,10 +151,30 @@ def get_data_info():
     inner(test_data)
     
 
-def main():
-    pass
+def get_model_param():
+    model_name_lst = [
+        'bert-base-uncased', 
+        'distilbert-base-uncased',
+        'roberta-base',
+        'facebook/bart-base',
+        'xlm-roberta-base',
+        'albert-base-v2',
+        # 'microsoft/deberta-v3-base',
+        'xlnet-base-cased',
+        'google/electra-base-discriminator',
+    ]
+    res = []
+    for model_name in model_name_lst:
+        model = AutoModel.from_pretrained(model_name, cache_dir='./pretrained_model/')
+        total_params = sum(p.numel() for p in model.parameters())
+        print(model_name, total_params)
+        print('-'*40)
+        res.append(total_params)
+    for d in res:
+        print(d//(1024**2))
 
 
 if __name__ == '__main__':
     # get_all_res('./_result.xlsx')
-    get_data_info()
+    # get_data_info()
+    get_model_param()

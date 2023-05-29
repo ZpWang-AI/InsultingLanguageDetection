@@ -19,7 +19,8 @@ sys.setrecursionlimit(10**8)
 # a timer to print running time of the target function
 # can be used as @clock or @clock()
 def clock(func=None, start_info='', end_info='', sym='---'):
-    if func:
+    if func != None:
+        print(func)
         def new_func(*args, **kwargs):
             if start_info:
                 print('  '+start_info)

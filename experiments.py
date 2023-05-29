@@ -22,11 +22,12 @@ def baseline():
 
 def display():
     config = Configv2()
-    config.version = 'display'
+    config.version = 'display_v4'
     config.share_encoder = False
-    config.cls_target = 'hd+cv+vo'
-    config.rdrop = True
-    main(config)
+    for cls_t in 'hd cv vo'.split():
+        config.cls_target = cls_t
+        config.rdrop = True
+        main(config)
 
 def best_model():
     config = Configv2()
@@ -103,7 +104,7 @@ def downsample_cmp():
 
 def rdrop_cmp():
     config = Configv2()
-    config.version = 'rdrop cmp'
+    config.version = 'rdrop cmp v2'
     config.rdrop = None
     main(config)
     for p_rdrop in range(1, 6):
@@ -126,6 +127,11 @@ def running_time_ablation():
         config.amp = p % 2
         config.deepspeed = p // 2 % 2
         main(config)
+    config.epochs = 1
+    config.amp = 1
+    config.deepspeed = 1
+    config.just_test = 1
+    main(config)
 
 def freeze_encoder_ablation():
     config = Configv2()
@@ -143,9 +149,9 @@ def freeze_encoder_ablation():
 # best_model()
 
 # model_encoder_cmp() # 4
-structure_cmp() # 5
+# structure_cmp() # 5
 # downsample_cmp() # 11
-# rdrop_cmp() # 6
+rdrop_cmp() # 6
 # early_dropout_cmp() # 10
 # running_time_ablation() # 4
 # freeze_encoder_ablation() # 1

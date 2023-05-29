@@ -133,11 +133,11 @@ def main_decorator(main_func):
             gc.collect()
             torch.cuda.empty_cache()
         except Exception as cur_error:
-            error_info = ''.join(
+            error_info = ''.join([
                 str(cur_error),
                 '\n'+'-'*20+'\n',
                 traceback.format_exc()
-            )
+            ])
             print(error_info)
             with open(log_path/path(error_mark_file), 'w')as f:
                 f.write(error_info)
@@ -156,7 +156,6 @@ def main_decorator(main_func):
 
 @main_decorator
 def main(config: Configv2, log_path):
-
     train_data_init = preprocess_train_data(train_data_file_list[0])
     test_data_init = preprocess_test_data(test_data_file_list[0])
     train_data_init, val_data_init = train_test_split(train_data_init, train_size=config.train_ratio, shuffle=True)
@@ -191,6 +190,7 @@ def main(config: Configv2, log_path):
         optimizer=torch.optim.AdamW,
         lr=config.lr,
         criterion=nn.CrossEntropyLoss(),
+        rdrop=config.rdrop,
     )
     model.get_pretrained_encoder()
     if config.freeze_encoder:
