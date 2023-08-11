@@ -11,6 +11,7 @@ tmp*
 
 pretrained_model
 saved_model
+MACAS-main
 flagged
 test*
 *.sh
